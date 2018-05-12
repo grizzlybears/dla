@@ -42,6 +42,12 @@ def load_some(filename ,dbcur, inventory_ranges ):
     # Bank.txt.utf8 ==> 'Bank'
     the_code = filename.split('.')[0]
 
+    if the_code in  inventory_ranges:
+        the_range = inventory_ranges[the_code]
+    else:
+        the_range = None
+    #print the_range
+
     for row in reader:
         row_num +=1
 
@@ -58,6 +64,11 @@ def load_some(filename ,dbcur, inventory_ranges ):
         md_record.code = the_code 
         md_record.load_from_csvrow( row)
         md_record.dump()
+
+        if the_range is not None \
+            and md_record.t_day >= the_range.start \
+            and md_record.t_day <= the_range.end :
+                continue
 
         db_operator.save_MD_to_db( dbcur, md_record)
 

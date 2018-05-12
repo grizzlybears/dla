@@ -36,7 +36,20 @@ def get_db_conn():
 # 获得DB中的， 代码=>时间范围 
 def get_inventory(dbcur):
     dbcur.execute ("select code, count(code), min(t_day), max(t_day) from MdHis order by code ")
-    return None
+    r = {}
+
+    row = dbcur.fetchone()
+    while row is not None:
+        one_entry =  data_struct.TDayRange()
+        one_entry.count = row[1]
+        one_entry.start = row[2]
+        one_entry.end   = row[3]
+        r[row[0]] = one_entry 
+    
+        row = dbcur.fetchone()
+    
+    return r
+
 
 
 def save_MD_to_db( dbcur, md): 
