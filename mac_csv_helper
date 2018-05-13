@@ -1,0 +1,6 @@
+#!/bin/bash -e
+
+iconv -f GBK $1 > $1.utf8
+dos2unix -c mac $1.utf8
+
+./dla import $1.utf8

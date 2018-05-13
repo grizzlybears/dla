@@ -6,7 +6,7 @@ import sqlite3
 import data_struct 
 import subprocess
 
-DB_NAME='rel_research.db'
+DB_NAME='dla_research.db'
 
  # 打开DB，并酌情建表，返回 sqlite3.Connection
 def get_db_conn():
@@ -35,7 +35,11 @@ def get_db_conn():
 
 # 获得DB中的， 代码=>时间范围 
 def get_inventory(dbcur):
-    dbcur.execute ("select code, count(code), min(t_day), max(t_day) from MdHis order by code ")
+    dbcur.execute ('''select code, count(code), min(t_day), max(t_day) 
+        from MdHis 
+        group by code 
+        order by code 
+        ''')
     r = {}
 
     row = dbcur.fetchone()

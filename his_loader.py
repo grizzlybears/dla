@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import csv
 import io
+import os
 import pdb
 
 import sqlite3
@@ -40,7 +41,8 @@ def load_some(filename ,dbcur, inventory_ranges ):
             
     # 取 src 中 '.' 之前的部分作为 code
     # Bank.txt.utf8 ==> 'Bank'
-    the_code = filename.split('.')[0]
+    basename = os.path.basename( filename )
+    the_code = basename.split('.')[0]
 
     if the_code in  inventory_ranges:
         the_range = inventory_ranges[the_code]
@@ -63,7 +65,7 @@ def load_some(filename ,dbcur, inventory_ranges ):
         md_record =  data_struct.MdRecord()
         md_record.code = the_code 
         md_record.load_from_csvrow( row)
-        md_record.dump()
+        #md_record.dump()
 
         if the_range is not None \
             and md_record.t_day >= the_range.start \
@@ -72,4 +74,5 @@ def load_some(filename ,dbcur, inventory_ranges ):
 
         db_operator.save_MD_to_db( dbcur, md_record)
 
+    print "%s was imported" % filename
 
