@@ -12,22 +12,30 @@ def check_col_name( filename,row, col_name):
     if col_name not in row:
         raise Exception("%s, csv文件格式有异，没有列'%s'" % (filename,col_name)  )
 
+def check_col_name2( filename,row, col1,col2):
+    if col1 not in row  and col2 not in row:
+        raise Exception("%s, csv文件格式有异，没有列'%s'" % (filename,col1)  )
+
+
 
 def verify_csv_format( filename, row ):
 
     col_num = len(row)
 
-    if 11 != col_num:
-        raise Exception("%s, csv文件格式有异，不是11列" % filename  )
+    if  col_num < 11:
+        raise Exception("%s, csv文件格式有异，不满11列" % filename  )
 
     check_col_name( filename, row, '时间')
     check_col_name( filename, row, '开盘')
     check_col_name( filename, row, '收盘')
     check_col_name( filename, row, '最高')
     check_col_name( filename, row, '最低')
-    check_col_name( filename, row, '涨幅%')
-    check_col_name( filename, row, '总手(万)')
-    check_col_name( filename, row, '金额(亿)')
+    check_col_name2( filename, row,'涨幅', '涨幅%')
+    check_col_name2( filename, row,'总手', '总手(万)')
+    check_col_name2( filename, row, '金额', '金额(亿)')
+
+    #check_col_name( filename, row, '总手(万)')
+    #check_col_name( filename, row, '金额(亿)')
     
     return
 

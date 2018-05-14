@@ -26,10 +26,13 @@ class MdRecord:
     #涨跌幅% float
     delta_r= None
 
-    #手数(万)
+    #换手率
+    turnover_r =None
+
+    #手数
     volume = 0
 
-    #成交金额(亿) float
+    #成交金额 float
     ammount = 0.0
 
  
@@ -43,7 +46,7 @@ class MdRecord:
                 )
  
     def dump_all(self, indent = "  "):
-         print "%s %s @%s 开=%s 收=%s 涨幅=%s%%  总手=%s(万)" % ( indent
+         print "%s %s @%s 开=%s 收=%s 涨幅=%s%%  总手=%s" % ( indent
                 , self.code
                 , self.t_day
                 , str(self.open_price)
@@ -78,14 +81,22 @@ class MdRecord:
             self.close_price = float(t)
 
         # '涨幅%': '1.23'  其实是 1.23% 的意思 
-        t = row['涨幅%']
+        if row.has_key('涨幅%'): 
+            t = row['涨幅%']
+        else:
+            t = row['涨幅'].split('%')[0]
+        
         if '--' == t :
             self.delta_r = None
         else:
             self.delta_r = float(t)
 
         # '总手(万)': '499848920'
-        t = row['总手(万)']
+        if row.has_key('总手(万)'): 
+            t = row['总手(万)']
+        else:
+            t = row['总手'].replace(',', '')
+
         if '--' == t :
             self.volume = None
         else:

@@ -21,10 +21,10 @@ def get_db_conn():
        , close NUMERIC
        , high  NUMERIC
        , low   NUMERIC
-       , delta   NUMERIC
        , delta_r NUMERIC
-       , volume_wan  NUMERIC
-       , amount_yi   NUMERIC
+       , volume  NUMERIC
+       , amount  NUMERIC
+       , turnover_r NUMERIC
        , PRIMARY KEY( code,t_day)
        )
     '''
@@ -61,16 +61,16 @@ def save_MD_to_db( dbcur, md):
                 code , t_day
                 , open , close 
                 , delta_r
-                , volume_wan)
+                , volume , turnover_r )
             values (?, ?
                  , ?, ? 
                  , ?
-                 , ?
+                 , ? ,?
                  )'''
                 , ( md.code,md.t_day
                     , md.open_price, md.close_price
                     , md.delta_r 
-                    , md.volume 
+                    , md.volume , md.turnover_r 
                   )
                 )
 
