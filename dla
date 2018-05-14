@@ -14,6 +14,7 @@ import subprocess
 
 import his_loader
 import db_operator
+import analyzer
 
 MY_NAME='dla'
 
@@ -21,6 +22,7 @@ MY_NAME='dla'
 
 def print_usage( argv0 = MY_NAME ):
     print "Usage:"
+    print "  %s list      列出导入单个日线文件" % argv0
     print "  %s import    <日线文件>   导入单个日线文件" % argv0
     print "  %s importdir <日线目录>   导入指定目录下所有日线文件(.txt) " % argv0
 
@@ -83,6 +85,37 @@ def handle_importdir( argv, argv0 = MY_NAME ):
             ])
     return r 
 
+# 处理 'list' 子命令
+def handle_list( argv, argv0 = MY_NAME ): 
+    try:
+        # connect to DB 
+        conn = db_operator.get_db_conn()
+        dbcur = conn.cursor()
+        inventory_ranges = db_operator.get_inventory(dbcur)
+
+        # real stuff
+        analyzer.print_inventory( inventory_ranges)
+        
+        # DB clean up
+        dbcur.close()
+        conn.commit()
+        conn.close()
+
+    except  Exception as e:
+        #pp = pprint.PrettyPrinter(indent=4)
+        #pp.pprint(e) 
+        
+        (t, v, bt) = sys.exc_info()
+        traceback.print_exception(t, v, bt)
+
+        print
+        print e
+
+        conn.close()
+        return 1
+
+    return 0
+
 
 def main(): 
     i = len(sys.argv)
@@ -95,7 +128,10 @@ def main():
     if ('import' == sub_command ):
         return handle_import ( sys.argv[2:] ) 
     elif ('importdir' == sub_command ):
-        return handle_importdir ( sys.argv[2:] ) 
+        return handle_importdir ( sys.argv[2:] )  
+    elif ('list' == sub_command ):
+        return handle_list ( sys.argv[2:] ) 
+
     elif ('help' == sub_command ):
         print_usage()
         return 1
