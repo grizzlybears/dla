@@ -23,6 +23,7 @@ MY_NAME='dla'
 def print_usage( argv0 = MY_NAME ):
     print "Usage:"
     print "  %s list      列出导入单个日线文件" % argv0
+    print "  %s correl    <代码1> <代码2> 考察指定两个代码的相关性 " % argv0
     print "  %s import    <日线文件>   导入单个日线文件" % argv0
     print "  %s importdir <日线目录>   导入指定目录下所有日线文件(.txt) " % argv0
 
@@ -117,6 +118,84 @@ def handle_list( argv, argv0 = MY_NAME ):
     return 0
 
 
+# 处理 'correl_all' 子命令
+def handle_correl_all ( argv, argv0 = MY_NAME ): 
+    try:
+        # connect to DB 
+        conn = db_operator.get_db_conn()
+        dbcur = conn.cursor()
+        inventory_ranges = db_operator.get_inventory(dbcur)
+
+        # real stuff 
+        
+        for k1,v1  in inventory_ranges.iteritems():
+            for k2,v1  in inventory_ranges.iteritems():
+                if k1 <= k2:
+                    continue;
+                # print "%s %s" % (k1,k2)
+                analyzer.correlation(dbcur, k1  , k2)
+        
+        # DB clean up
+        dbcur.close()
+        conn.commit()
+        conn.close()
+
+    except  Exception as e:
+        #pp = pprint.PrettyPrinter(indent=4)
+        #pp.pprint(e) 
+        
+        (t, v, bt) = sys.exc_info()
+        traceback.print_exception(t, v, bt)
+
+        print
+        print e
+
+        conn.close()
+        return 1
+
+    return 0
+
+
+# 处理 'correl' 子命令
+def handle_correl( argv, argv0 = MY_NAME ): 
+    
+    i = len(argv)
+    if ( i < 2 ):
+        print "  %s correl    <代码1> <代码2> 考察指定两个代码的相关性 " % argv0
+        print "\n 未指定两个代码\n"
+        return 1
+
+    try:
+        # connect to DB 
+        conn = db_operator.get_db_conn()
+        dbcur = conn.cursor()
+        inventory_ranges = db_operator.get_inventory(dbcur)
+
+        # real stuff
+        analyzer.correlation(dbcur, argv[0] , argv[1])
+        
+        # DB clean up
+        dbcur.close()
+        conn.commit()
+        conn.close()
+
+    except  Exception as e:
+        #pp = pprint.PrettyPrinter(indent=4)
+        #pp.pprint(e) 
+        
+        (t, v, bt) = sys.exc_info()
+        traceback.print_exception(t, v, bt)
+
+        print
+        print e
+
+        conn.close()
+        return 1
+
+    return 0
+
+
+
 def main(): 
     i = len(sys.argv)
     if ( i < 2 ):
@@ -131,7 +210,10 @@ def main():
         return handle_importdir ( sys.argv[2:] )  
     elif ('list' == sub_command ):
         return handle_list ( sys.argv[2:] ) 
-
+    elif ('correl' == sub_command ):
+        return handle_correl ( sys.argv[2:] )  
+    elif ('correl_all' == sub_command ):
+        return handle_correl_all ( sys.argv[2:] ) 
     elif ('help' == sub_command ):
         print_usage()
         return 1
