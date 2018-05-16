@@ -24,7 +24,7 @@ def print_inventory(inventory_ranges):
 # https://stackoverflow.com/questions/3949226/calculating-pearson-correlation-and-significance-in-python#
 
 def generate_his_csv( code1, code2, logged_his):
-    filename = "%s_%s.csv" % (code1,code2)
+    filename = "%s/%s_%s.csv" % (data_struct.WORKING_DIR, code1, code2)
     #the_file = io.open( filename, "w", encoding='utf-8')
     the_file = io.open( filename, "wb" )
 

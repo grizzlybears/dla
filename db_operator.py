@@ -6,11 +6,10 @@ import sqlite3
 import data_struct 
 import subprocess
 
-DB_NAME='dla_research.db'
 
  # 打开DB，并酌情建表，返回 sqlite3.Connection
 def get_db_conn():
-    conn = sqlite3.connect( DB_NAME)
+    conn = sqlite3.connect( data_struct.DB_PATH)
     conn.text_factory = str
 
     sql = ''' CREATE TABLE IF NOT EXISTS MdHis (

@@ -15,6 +15,7 @@ import subprocess
 import his_loader
 import db_operator
 import analyzer
+import data_struct 
 
 MY_NAME='dla'
 
@@ -194,6 +195,14 @@ def handle_correl( argv, argv0 = MY_NAME ):
 
     return 0
 
+def make_sure_working_dir():
+    r = subprocess.call([ "mkdir"
+            , "-p"
+            , data_struct.WORKING_DIR 
+            ])
+
+    if 0 != r:
+        raise Exception("Failed to make '%s'" % data_struct.WORKING_DIR );
 
 
 def main(): 
@@ -201,6 +210,8 @@ def main():
     if ( i < 2 ):
         print_usage()
         return 1
+
+    make_sure_working_dir()
 
     sub_command = sys.argv[1]
 

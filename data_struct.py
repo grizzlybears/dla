@@ -2,6 +2,11 @@
 
 import sqlite3
 
+WORKING_DIR = "working_dir"
+JSLIB       = "jslib"
+HTML_TEMPL  = "html_template"
+DB_PATH     = "%s/dla.db" % WORKING_DIR
+
 # 日线记录
 class MdRecord:
  
