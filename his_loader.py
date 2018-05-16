@@ -83,4 +83,5 @@ def load_some(filename ,dbcur, inventory_ranges ):
         db_operator.save_MD_to_db( dbcur, md_record)
 
     print "%s was imported" % filename
+    the_file.close()
 
