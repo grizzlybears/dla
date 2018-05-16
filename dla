@@ -128,14 +128,9 @@ def handle_correl_all ( argv, argv0 = MY_NAME ):
         inventory_ranges = db_operator.get_inventory(dbcur)
 
         # real stuff 
+        analyzer.correlation_all( inventory_ranges,  dbcur)
         
-        for k1,v1  in inventory_ranges.iteritems():
-            for k2,v1  in inventory_ranges.iteritems():
-                if k1 <= k2:
-                    continue;
-                # print "%s %s" % (k1,k2)
-                analyzer.correlation(dbcur, k1  , k2)
-        
+               
         # DB clean up
         dbcur.close()
         conn.commit()
@@ -173,7 +168,10 @@ def handle_correl( argv, argv0 = MY_NAME ):
         inventory_ranges = db_operator.get_inventory(dbcur)
 
         # real stuff
-        analyzer.correlation(dbcur, argv[0] , argv[1])
+        code1 = argv[0]
+        code2 = argv[1]
+        r_close,r_delta = analyzer.correlation(dbcur, code1 , code2)
+        print "%s %s , 收盘价关联度 = %f，涨跌幅关联度 = %f" % ( code1, code2, r_close, r_delta )
         
         # DB clean up
         dbcur.close()
@@ -204,6 +202,11 @@ def make_sure_working_dir():
     if 0 != r:
         raise Exception("Failed to make '%s'" % data_struct.WORKING_DIR );
 
+#    subprocess.call([ "ln "
+#            , "-s"
+#            , "%s/ggchart_loader.js" % data_struct.JSLIB 
+#            , data_struct.WORKING_DIR 
+#            ])
 
 def main(): 
     i = len(sys.argv)

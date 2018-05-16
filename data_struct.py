@@ -5,7 +5,11 @@ import sqlite3
 WORKING_DIR = "working_dir"
 JSLIB       = "jslib"
 HTML_TEMPL  = "html_template"
+TEMPL_A     = "%s/template_A.html" % HTML_TEMPL 
+TEMPL_B     = "%s/template_B.html" % HTML_TEMPL 
 DB_PATH     = "%s/dla.db" % WORKING_DIR
+HTML_INDEX  = "%s/_index.html" %WORKING_DIR 
+
 
 # 日线记录
 class MdRecord:
