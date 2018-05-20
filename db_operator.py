@@ -23,11 +23,22 @@ def get_db_conn():
        , delta_r NUMERIC
        , volume  NUMERIC
        , amount  NUMERIC
+       , delta_alpha NUMBER 
        , turnover_r NUMERIC
        , PRIMARY KEY( code,t_day)
        )
     '''
+    conn.execute( sql) 
+    
+    sql = ''' CREATE TABLE IF NOT EXISTS Settings (
+       var_name  TEXT 
+       , t_value     TEXT
+       , n_value     NUMERIC
+       , PRIMARY KEY( var_name  )
+       )
+    '''
     conn.execute( sql)
+
     conn.commit()
 
     return conn 
@@ -73,4 +84,40 @@ def save_MD_to_db( dbcur, md):
                   )
                 )
 
+
+def gen_alpha( dbcur, base_code , target_code):
+    #update MdHis 
+    #set  delta_alpha = delta_r - ( select delta_r from MdHis b where b.t_day = t_day  and b.delta_r is not null and b.code =  '沪深300000300')
+    #where 
+    #  code ='银行'
+    
+    dbcur.execute( ''' update MdHis 
+        set  delta_alpha = delta_r - ( select delta_r from MdHis b where b.t_day = t_day  and b.delta_r is not null and b.code = ? )
+        where 
+          code = ?
+        '''
+        , ( base_code , target_code )
+        )
+
+    r = dbcur.rowcount 
+
+    dbcur.connection.commit()
+
+    return r
+
+
+def save_setting_basecode( dbcur, base_code ):
+    dbcur.execute(
+            ''' delete from Settings where var_name = ?
+            '''
+            , ('base_code', )
+            )
+
+    dbcur.execute(
+            ''' insert into Settings (var_name, t_value) values ( ? , ?)
+            '''
+            , ('base_code', base_code)
+            )
+
+    dbcur.connection.commit()
 

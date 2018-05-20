@@ -51,11 +51,31 @@ def generate_his_htm_chart( code1, code2, logged_his):
     html_file.write( str( logged_his).decode('string_escape'))
 
     html_file.write( "\n")
-    html_file.write( template_B)
+    html_file.write( template_B.replace('$more_chart_options$', '' ) )
 
     html_file.close()
  
-    
+def generate_diff_htm_chart( code1, code2, diff_his):
+    filename = "%s/%s_%s.diff.html" % (data_struct.WORKING_DIR, code1, code2)
+    html_file = io.open( filename, "wb" )
+
+    template_A_file = io.open( data_struct.TEMPL_A , "r") 
+    template_A = str( template_A_file.read() )
+    template_A_file.close()
+
+    template_B_file = io.open( data_struct.TEMPL_B , "r") 
+    template_B = str( template_B_file.read())
+    template_B_file.close()
+
+    html_file.write( template_A.replace( '$title$' , "diff of (%s - %s)" % (code1,code2) ) )
+
+    html_file.write( str( diff_his).decode('string_escape'))
+
+    html_file.write( "\n")
+    html_file.write( template_B.replace('$more_chart_options$', ',colors: [\'black\']' ) )
+
+    html_file.close()
+     
 def correlation( dbcur,code1, code2):
 
     dbcur.execute ('''select a.t_day, a.close, a.delta_r, b.close, b.delta_r 
@@ -68,6 +88,20 @@ def correlation( dbcur,code1, code2):
         '''
         , (code1 ,code2)
         )
+   
+   #
+   # 根据 涨跌幅_aplha  来计算 涨跌幅关联度， 结果等同于直接用 涨跌幅计算
+   # dbcur.execute ('''select a.t_day, a.close, a.delta_alpha, b.close, b.delta_alpha 
+   #     from MdHis a , MdHis b
+   #     where 
+   #         a.code = ? and b.code = ?
+   #         and a.t_day = b.t_day
+   #         and a.delta_alpha is not null and b.delta_alpha is not null
+   #     order by a.t_day 
+   #     '''
+   #     , (code1 ,code2)
+   #     )
+
 
 
     v_delta_r1 = []
@@ -79,6 +113,10 @@ def correlation( dbcur,code1, code2):
 
     fieldnames = ['T_Day', "%s logged" % code1, "%s logged" % code2]
     logged_his.append( fieldnames );
+
+    diff_his = []
+    diff_his.append( ['T_Day', "%s - %s" % (code1, code2) ]  )
+
 
     row_num = 0
 
@@ -98,19 +136,34 @@ def correlation( dbcur,code1, code2):
         close1 = float(row[1] )
         close2 = float(row[3] )
 
-        v_c1.append ( close1 )
-        v_c2.append ( close2 )
+        #v_c1.append ( close1 ) # 直接考察收盘价的关联度
+        #v_c2.append ( close2 )
 
         if 1 == row_num:
+            # (相对于期初)对数化
             logged_his.append( [row[0], 0 , 0  ] )
             first_c1 = math.log(close1)
             first_c2 = math.log(close2)
+
+            v_c1.append(0)   # 考察对数化之后的收盘价的关联度
+            v_c2.append(0)
+
+            diff_his.append( [row[0], 0] );
+
         else:
+
+            # (相对于期初)对数化
+            logged1 = round( math.log(close1) - first_c1 , 4 )
+            logged2 = round( math.log(close2) - first_c2 , 4 )
             logged_his.append( [
                 row[0]
-                , round( math.log(close1) - first_c1 , 4 )
-                , round( math.log(close2) - first_c2 , 4 )
-                ] )
+                , logged1 
+                , logged2
+                 ] )
+
+            v_c1.append(logged1) # 考察对数化之后的收盘价的关联度
+            v_c2.append(logged2)
+            diff_his.append( [row[0], round ( logged1 - logged2 , 4 ) ] );
 
         row = dbcur.fetchone()
     
@@ -118,17 +171,28 @@ def correlation( dbcur,code1, code2):
     r_delta,p    = pearsonr(v_delta_r1 ,v_delta_r2 )
     r_close,p2  = pearsonr(v_c1 ,v_c2 )
 
-    generate_his_csv( code1, code2, logged_his)
-    generate_his_htm_chart( code1, code2, logged_his)
+    #generate_his_csv( code1, code2, logged_his)
+    #generate_his_htm_chart( code1, code2, logged_his)
+    #generate_diff_htm_chart( code1, code2, diff_his)
 
-    return ( r_close, r_delta)
+    return ( r_close, r_delta, row_num )
 
 class Correlation(object):
-    def __init__ (self , code1, code2 , r_close, r_delta):
+    def __init__ (self , code1, code2 , r_close, r_delta, record_num):
+ 
         self.code1 = code1
         self.code2 = code2
+
+        #if code1 < code2:
+        #    self.code1 = code1
+        #    self.code2 = code2
+        #else:
+        #    self.code2 = code1
+        #    self.code1 = code2
+
         self.r_close = r_close
         self.r_delta = r_delta
+        self.record_num = record_num 
 
     def __repr__(self):
         return "%s - %s : %f %f\n" % (self.code1 , self.code2, self.r_close , self.r_delta )
@@ -145,6 +209,27 @@ def cmp_correl( correl1, correl2):
 
     return 0
 
+def gen_alpha( dbcur, base_code):
+    inventory_ranges = db_operator.get_inventory(dbcur)
+
+    if base_code  not in inventory_ranges:
+        print "'%s' was not in DB." % base_code
+        return
+
+    entry = inventory_ranges[base_code]
+    if entry.count < 2000:
+        print "'%s' 日线不足2000，不能作为‘基准’指数。" % base_code
+        return 
+
+
+    for k1,v1  in inventory_ranges.iteritems():
+        if k1 == base_code:
+            continue
+        r = db_operator.gen_alpha(dbcur, base_code, k1)
+        print "generated aplha in  %d records of code = '%s'" % (r, k1)
+
+    db_operator.save_setting_basecode( dbcur, base_code)
+
 
 def correlation_all(inventory_ranges, dbcur):
 
@@ -156,12 +241,15 @@ def correlation_all(inventory_ranges, dbcur):
             if k1 <= k2:
                 continue;
                 # print "%s %s" % (k1,k2)
-            r_close,r_delta = correlation(dbcur, k1  , k2)
-            correls.append( Correlation( k1, k2, r_close, r_delta) )
+            r_close,r_delta , row_num = correlation(dbcur, k1  , k2)
 
-            #count = count +1
-            #if count >= 20:
-            #    break
+            one_entry =Correlation( k1, k2, r_close, r_delta, row_num) 
+            correls.append( one_entry) 
+            print one_entry
+
+            count = count +1
+            if count >= 20:
+                break
 
     correls_sorted = sorted( correls, cmp = cmp_correl )
     
@@ -171,9 +259,14 @@ def correlation_all(inventory_ranges, dbcur):
     html_file.write("<html><body>\n" )
 
     for cor  in correls_sorted:
-        html_file.write("<a href=%s_%s.html> %s - %s : 收盘价相关度=%f, 涨跌幅相关度=%f  </a><br>\n "
-                % (cor.code1, cor.code2, cor.code1, cor.code2, cor.r_close , cor.r_delta )
+        html_file.write("<a href=%s_%s.html> %s - %s </a>: 收盘价相关度=%f, 涨跌幅相关度=%f, 记录数 = %d\n "
+                % (cor.code1, cor.code2, cor.code1, cor.code2
+                    , cor.r_close , cor.r_delta , cor.record_num )
                 )
+        html_file.write("&nbsp;&nbsp; <a href=%s_%s.diff.html> 'chart of diff'</a><br>\n "
+                % (cor.code1, cor.code2 )
+                )
+
 
     html_file.write("</body></html>\n" )
 

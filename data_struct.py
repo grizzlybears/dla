@@ -35,6 +35,9 @@ class MdRecord:
     #涨跌幅% float
     delta_r= None
 
+    # 涨跌幅 - 大盘涨跌幅
+    delta_alpha = None
+
     #换手率
     turnover_r =None
 
