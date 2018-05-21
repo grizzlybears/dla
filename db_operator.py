@@ -38,6 +38,17 @@ def get_db_conn():
        )
     '''
     conn.execute( sql)
+ 
+    sql = ''' CREATE TABLE IF NOT EXISTS Correl (
+       code1  TEXT 
+       , code2    TEXT
+       , close_correl     NUMERIC
+       , delta_correl     NUMERIC
+       , PRIMARY KEY( code1,code2 )
+       )
+    '''
+    conn.execute( sql)
+
 
     conn.commit()
 
@@ -63,6 +74,29 @@ def get_inventory(dbcur):
         row = dbcur.fetchone()
     
     return r
+
+# 获得DB中的， 代码=>时间范围 ，只要2000日线以上
+def get_inventory2(dbcur):
+    dbcur.execute ('''select code, count(code) as c, min(t_day), max(t_day) 
+        from MdHis 
+        group by code 
+        having c >= 2000
+        order by code 
+        ''')
+    r = {}
+
+    row = dbcur.fetchone()
+    while row is not None:
+        one_entry =  data_struct.TDayRange()
+        one_entry.count = row[1]
+        one_entry.start = row[2]
+        one_entry.end   = row[3]
+        r[row[0]] = one_entry 
+    
+        row = dbcur.fetchone()
+    
+    return r
+
 
 
 
@@ -108,16 +142,39 @@ def gen_alpha( dbcur, base_code , target_code):
 
 def save_setting_basecode( dbcur, base_code ):
     dbcur.execute(
-            ''' delete from Settings where var_name = ?
-            '''
-            , ('base_code', )
-            )
-
-    dbcur.execute(
-            ''' insert into Settings (var_name, t_value) values ( ? , ?)
+            ''' insert or replace into Settings (var_name, t_value) values ( ? , ?)
             '''
             , ('base_code', base_code)
             )
 
     dbcur.connection.commit()
 
+def save_correl_to_db( dbcur, correl): 
+
+    dbcur.execute( '''insert or replace into  Correl(
+                code1 , code2 
+                , close_correl, delta_correl
+                )
+            values (?, ?
+                 , ?, ? 
+                 )'''
+                , ( correl.code1 , correl.code2
+                    , correl.r_close , correl.r_delta 
+                  )
+                )
+
+    dbcur.connection.commit()
+
+def show_correl():
+    sql = ''' select *  
+         from Correl 
+         order by code1,code2
+         '''
+
+    subprocess.call([
+            'sqlite3'
+            , data_struct.DB_PATH 
+            , sql
+            ])
+
+ 

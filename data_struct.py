@@ -121,4 +121,23 @@ class TDayRange:
     end   = ""
     count = 0
 
+class Correlation(object):
+    def __init__ (self , code1, code2 , r_close, r_delta, record_num):
+ 
+        #self.code1 = code1
+        #self.code2 = code2
 
+        if code1 > code2:
+            self.code1 = code1
+            self.code2 = code2
+        else:
+            self.code2 = code1
+            self.code1 = code2
+
+        self.r_close = r_close
+        self.r_delta = r_delta
+        self.record_num = record_num 
+
+    def __repr__(self):
+        return "%s - %s : %f %f\n" % (self.code1 , self.code2, self.r_close , self.r_delta )
+ 

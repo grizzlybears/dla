@@ -50,9 +50,7 @@ def handle_import( argv, argv0 = MY_NAME ):
         his_loader.load_some( argv[0] , dbcur, inventory_ranges)
         
         # DB clean up
-        dbcur.close()
         conn.commit()
-        conn.close()
 
     except  Exception as e:
         #pp = pprint.PrettyPrinter(indent=4)
@@ -63,9 +61,11 @@ def handle_import( argv, argv0 = MY_NAME ):
 
         print
         print e
-
-        conn.close()
         return 1
+    finally:
+        dbcur.close()
+        conn.close()
+
 
     return 0
 
@@ -101,9 +101,7 @@ def handle_list( argv, argv0 = MY_NAME ):
         analyzer.print_inventory( inventory_ranges)
         
         # DB clean up
-        dbcur.close()
         conn.commit()
-        conn.close()
 
     except  Exception as e:
         #pp = pprint.PrettyPrinter(indent=4)
@@ -114,11 +112,34 @@ def handle_list( argv, argv0 = MY_NAME ):
 
         print
         print e
-
+        return 1 
+    finally:
+        dbcur.close()
         conn.close()
-        return 1
 
     return 0
+
+# 处理 'show_correl' 子命令
+def handle_show_correl( argv, argv0 = MY_NAME ): 
+    try:
+        # real stuff
+        db_operator.show_correl()
+        
+    except  Exception as e:
+        #pp = pprint.PrettyPrinter(indent=4)
+        #pp.pprint(e) 
+        
+        (t, v, bt) = sys.exc_info()
+        traceback.print_exception(t, v, bt)
+
+        print
+        print e
+        return 1 
+
+
+
+    return 0
+
 
 
 # 处理 'correl_all' 子命令
@@ -127,16 +148,14 @@ def handle_correl_all ( argv, argv0 = MY_NAME ):
         # connect to DB 
         conn = db_operator.get_db_conn()
         dbcur = conn.cursor()
-        inventory_ranges = db_operator.get_inventory(dbcur)
+        inventory_ranges = db_operator.get_inventory2(dbcur)
 
         # real stuff 
         analyzer.correlation_all( inventory_ranges,  dbcur)
         
                
         # DB clean up
-        dbcur.close()
         conn.commit()
-        conn.close()
 
     except  Exception as e:
         #pp = pprint.PrettyPrinter(indent=4)
@@ -148,8 +167,11 @@ def handle_correl_all ( argv, argv0 = MY_NAME ):
         print
         print e
 
-        conn.close()
         return 1
+    finally:
+        dbcur.close()
+        conn.close()
+
 
     return 0
 
@@ -176,9 +198,7 @@ def handle_correl( argv, argv0 = MY_NAME ):
         print "%s %s , 收盘价关联度 = %f，涨跌幅关联度 = %f" % ( code1, code2, r_close, r_delta )
         
         # DB clean up
-        dbcur.close()
         conn.commit()
-        conn.close()
 
     except  Exception as e:
         #pp = pprint.PrettyPrinter(indent=4)
@@ -190,8 +210,11 @@ def handle_correl( argv, argv0 = MY_NAME ):
         print
         print e
 
-        conn.close()
         return 1
+    finally:
+        dbcur.close()
+        conn.close()
+
 
     return 0
 
@@ -216,9 +239,7 @@ def handle_gen_alpha( argv, argv0 = MY_NAME ):
         analyzer.gen_alpha(dbcur, code1 )
         
         # DB clean up
-        dbcur.close()
         conn.commit()
-        conn.close()
 
     except  Exception as e:
         (t, v, bt) = sys.exc_info()
@@ -226,8 +247,11 @@ def handle_gen_alpha( argv, argv0 = MY_NAME ):
 
         print
         print e
-        conn.close()
         return 1
+    finally:
+        dbcur.close()
+        conn.close()
+
 
     return 0
 
@@ -262,7 +286,9 @@ def main():
     elif ('importdir' == sub_command ):
         return handle_importdir ( sys.argv[2:] )  
     elif ('list' == sub_command ):
-        return handle_list ( sys.argv[2:] ) 
+        return handle_list ( sys.argv[2:] )  
+    elif ('show_correl' == sub_command ):
+        return handle_show_correl ( sys.argv[2:] ) 
     elif ('correl' == sub_command ):
         return handle_correl ( sys.argv[2:] )  
     elif ('correl_all' == sub_command ):

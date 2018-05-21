@@ -172,31 +172,12 @@ def correlation( dbcur,code1, code2):
     r_close,p2  = pearsonr(v_c1 ,v_c2 )
 
     #generate_his_csv( code1, code2, logged_his)
-    #generate_his_htm_chart( code1, code2, logged_his)
-    #generate_diff_htm_chart( code1, code2, diff_his)
+    generate_his_htm_chart( code1, code2, logged_his)
+    generate_diff_htm_chart( code1, code2, diff_his)
 
     return ( r_close, r_delta, row_num )
 
-class Correlation(object):
-    def __init__ (self , code1, code2 , r_close, r_delta, record_num):
- 
-        self.code1 = code1
-        self.code2 = code2
-
-        #if code1 < code2:
-        #    self.code1 = code1
-        #    self.code2 = code2
-        #else:
-        #    self.code2 = code1
-        #    self.code1 = code2
-
-        self.r_close = r_close
-        self.r_delta = r_delta
-        self.record_num = record_num 
-
-    def __repr__(self):
-        return "%s - %s : %f %f\n" % (self.code1 , self.code2, self.r_close , self.r_delta )
-    
+   
 def cmp_correl( correl1, correl2):
     k1 = correl1.r_close + correl1.r_delta 
     k2 = correl2.r_close + correl2.r_delta 
@@ -237,19 +218,26 @@ def correlation_all(inventory_ranges, dbcur):
 
     count = 0
     for k1,v1  in inventory_ranges.iteritems():
-        for k2,v1  in inventory_ranges.iteritems():
+        for k2,v2  in inventory_ranges.iteritems():
             if k1 <= k2:
                 continue;
                 # print "%s %s" % (k1,k2)
             r_close,r_delta , row_num = correlation(dbcur, k1  , k2)
 
-            one_entry =Correlation( k1, k2, r_close, r_delta, row_num) 
+            one_entry = data_struct.Correlation( k1, k2, r_close, r_delta, row_num) 
             correls.append( one_entry) 
+
+            db_operator.save_correl_to_db( dbcur , one_entry)
             print one_entry
 
             count = count +1
-            if count >= 20:
+            if count >= 5:
                 break
+
+        if count >= 200:
+            break
+
+
 
     correls_sorted = sorted( correls, cmp = cmp_correl )
     
