@@ -23,12 +23,13 @@ MY_NAME='dla'
 
 def print_usage( argv0 = MY_NAME ):
     print "Usage:"
-    print "  %s list       列出导入单个日线文件" % argv0
-    print "  %s gen_alpha  <代码>  以<代码>为基准，设定其他代码的alpha" % argv0
-    print "  %s correl     <代码1> <代码2> 考察指定两个代码的相关性 " % argv0
-    print "  %s correl_all 考察所有代码之间的相关性 " % argv0
-    print "  %s import     <日线文件>   导入单个日线文件" % argv0
-    print "  %s importdir  <日线目录>   导入指定目录下所有日线文件(.txt) " % argv0
+    print "  %s list        列出导入单个日线文件" % argv0
+    print "  %s gen_alpha   <代码>  以<代码>为基准，设定其他代码的alpha" % argv0
+    print "  %s correl      <代码1> <代码2> 考察指定两个代码的相关性 " % argv0
+    print "  %s correl_all  考察所有代码之间的相关性 " % argv0
+    print "  %s show_correl 列出记录与DB的相关性关系 " % argv0
+    print "  %s import      <日线文件>   导入单个日线文件" % argv0
+    print "  %s importdir   <日线目录>   导入指定目录下所有日线文件(.txt) " % argv0
 
 
 # 处理 'import' 子命令
