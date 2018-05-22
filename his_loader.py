@@ -84,3 +84,11 @@ def load_some(filename ,dbcur, inventory_ranges ):
     print "%s was imported" % filename
     the_file.close()
 
+def codes_from_file( filepath):
+    with io.open( filepath, "r", encoding='utf-8') as f:
+        content = f.read().splitlines()
+
+    #print content 
+
+    return content 
+

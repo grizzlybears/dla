@@ -26,7 +26,7 @@ def print_usage( argv0 = MY_NAME ):
     print "  %s list        列出导入单个日线文件" % argv0
     print "  %s gen_alpha   <代码>  以<代码>为基准，设定其他代码的alpha" % argv0
     print "  %s correl      <代码1> <代码2> 考察指定两个代码的相关性 " % argv0
-    print "  %s correl_all  考察所有代码之间的相关性 " % argv0
+    print "  %s correl_all  [<代码列表文件>] 考察所有代码之间的相关性 " % argv0
     print "  %s show_correl 列出记录与DB的相关性关系 " % argv0
     print "  %s import      <日线文件>   导入单个日线文件" % argv0
     print "  %s importdir   <日线目录>   导入指定目录下所有日线文件(.txt) " % argv0
@@ -149,8 +149,24 @@ def handle_correl_all ( argv, argv0 = MY_NAME ):
         # connect to DB 
         conn = db_operator.get_db_conn()
         dbcur = conn.cursor()
-        inventory_ranges = db_operator.get_inventory2(dbcur)
 
+
+        inventory_ranges = {} 
+ 
+        i = len(argv)
+        if ( 1 == i  ):
+            inventory_ranges = db_operator.get_inventory(dbcur)
+            # 只关心列在文件里的那些代码
+            codes_from_file = his_loader.codes_from_file( argv[0] )
+
+            for k in inventory_ranges.keys():
+                if k not in codes_from_file:
+                    del inventory_ranges[k]
+
+            analyzer.print_inventory( inventory_ranges)
+        else:
+            inventory_ranges = db_operator.get_inventory2(dbcur)
+        
         # real stuff 
         analyzer.correlation_all( inventory_ranges,  dbcur)
         

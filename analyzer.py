@@ -231,11 +231,11 @@ def correlation_all(inventory_ranges, dbcur):
             print one_entry
 
             count = count +1
-            if count >= 5:
-                break
+            #if count >= 5:
+            #    break
 
-        if count >= 200:
-            break
+        #if count >= 200:
+        #    break
 
 
 
