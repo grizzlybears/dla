@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import os
+import re
 import sqlite3
 
 WORKING_DIR = "working_dir"
@@ -117,12 +119,15 @@ class MdRecord:
 
 # 时间范围 YYYY-MM-DD
 class TDayRange:
+    code = ""
     start = ""
     end   = ""
     count = 0
+    name  = ""
+
 
 class Correlation(object):
-    def __init__ (self , code1, code2 , r_close, r_delta, record_num):
+    def __init__ (self , code1, code2 , r_close, r_delta, record_num, name1, name2 ):
  
         #self.code1 = code1
         #self.code2 = code2
@@ -130,14 +135,48 @@ class Correlation(object):
         if code1 > code2:
             self.code1 = code1
             self.code2 = code2
+            self.name1 = name1
+            self.name2 = name2
         else:
             self.code2 = code1
-            self.code1 = code2
+            self.code1 = code2 
+            self.name2 = name1
+            self.name1 = name2
+
 
         self.r_close = r_close
         self.r_delta = r_delta
         self.record_num = record_num 
 
     def __repr__(self):
-        return "%s - %s : %f %f\n" % (self.code1 , self.code2, self.r_close , self.r_delta )
+        return "%s%s - %s%s : %f %f\n" % (self.code1 , self.name1
+                                    , self.code2, self.name2
+                                    , self.r_close , self.r_delta )
  
+class SecurityInfo:
+    def __init__(self):
+        self.dir_path  = ""
+        self.code = ""
+        self.name = ""
+
+    def __init__( self, filepath):
+        self.dirpath = os.path.dirname( filepath)
+
+        basename = os.path.basename( filepath )
+        
+        no_ext  = basename.split('.')[0]
+
+        ma =  re.match( '^(.+)(\d{6})$' , no_ext )
+        if ma:
+            #是 <名称><6位代码> 的格式
+            self.code = ma.group(2)
+            self.name = ma.group(1)
+        else: 
+            # 取 src 中 '.' 之前的部分作为 code
+            # Bank.txt.utf8 ==> 'Bank' 
+            self.code = no_ext
+            self.name = ""
+
+    def dump(self):
+        print "%s (%s) in %s" % (self.code, self.name, self.dirpath)
+

@@ -45,12 +45,11 @@ def load_some(filename ,dbcur, inventory_ranges ):
     #reader = csv.reader( the_file, dialect = 'excel-tab')
 
     row_num = 0
-    the_code = ""
             
-    # 取 src 中 '.' 之前的部分作为 code
-    # Bank.txt.utf8 ==> 'Bank'
-    basename = os.path.basename( filename )
-    the_code = basename.split('.')[0]
+    info = data_struct.SecurityInfo( filename )
+    the_code = info.code
+    #info.dump()
+    db_operator.save_sec_info_to_db(dbcur, info)
 
     if the_code in  inventory_ranges:
         the_range = inventory_ranges[the_code]

@@ -11,6 +11,15 @@ import subprocess
 def get_db_conn():
     conn = sqlite3.connect( data_struct.DB_PATH)
     conn.text_factory = str
+ 
+    sql = ''' CREATE TABLE IF NOT EXISTS SecurityInfo (
+       code   TEXT 
+       , name TEXT
+       , dir  TEXT
+       , PRIMARY KEY( code)
+       )
+    '''
+    conn.execute( sql) 
 
     sql = ''' CREATE TABLE IF NOT EXISTS MdHis (
        code   TEXT 
@@ -56,19 +65,28 @@ def get_db_conn():
 
 # 获得DB中的， 代码=>时间范围 
 def get_inventory(dbcur):
-    dbcur.execute ('''select code, count(code), min(t_day), max(t_day) 
-        from MdHis 
-        group by code 
-        order by code 
+    dbcur.execute ('''
+        select a.code,a.num , a.first, a.last , ifnull(b.name ,'')
+        from 
+            (
+                select code, count(code) as num , min(t_day) as first, max(t_day) as last
+                from MdHis 
+                group by code 
+                order by code 
+            ) a 
+            left join SecurityInfo b on a.code = b.code
+            order by a.code
         ''')
     r = {}
 
     row = dbcur.fetchone()
     while row is not None:
         one_entry =  data_struct.TDayRange()
+        one_entry.code  = row[0]
         one_entry.count = row[1]
         one_entry.start = row[2]
         one_entry.end   = row[3]
+        one_entry.name  = row[4]
         r[row[0]] = one_entry 
     
         row = dbcur.fetchone()
@@ -76,29 +94,37 @@ def get_inventory(dbcur):
     return r
 
 # 获得DB中的， 代码=>时间范围 ，只要2000日线以上
-def get_inventory2(dbcur):
-    dbcur.execute ('''select code, count(code) as c, min(t_day), max(t_day) 
-        from MdHis 
-        group by code 
-        having c >= 2000
-        order by code 
+def get_inventory2(dbcur): 
+    dbcur.execute ('''
+        select a.code,a.num , a.first, a.last , ifnull(b.name ,'')
+        from 
+            (
+                select code, count(code) as num , min(t_day) as first, max(t_day) as last
+                from MdHis 
+                group by code 
+                having num  >= 2000
+                order by code 
+            ) a 
+            left join SecurityInfo b on a.code = b.code
+            order by a.code
+
         ''')
+
     r = {}
 
     row = dbcur.fetchone()
     while row is not None:
         one_entry =  data_struct.TDayRange()
+        one_entry.code  = row[0]
         one_entry.count = row[1]
         one_entry.start = row[2]
         one_entry.end   = row[3]
+        one_entry.name  = row[4]
         r[row[0]] = one_entry 
     
         row = dbcur.fetchone()
     
     return r
-
-
-
 
 def save_MD_to_db( dbcur, md): 
     dbcur.execute( '''insert into  MdHis(
@@ -177,4 +203,16 @@ def show_correl():
             , sql
             ])
 
- 
+def save_sec_info_to_db( dbcur, info): 
+    dbcur.execute( '''insert or replace into  SecurityInfo(
+                code, name , dir 
+                )
+            values (?, ?, ?
+                 )'''
+                , ( info.code , info.name  , info.dirpath 
+                  )
+                )
+
+    dbcur.connection.commit()
+
+

@@ -12,7 +12,7 @@ from scipy.stats.stats import pearsonr
 
 def print_inventory(inventory_ranges):
     for k,v  in inventory_ranges.iteritems():
-        print "%s\t %s ~ %s, %d records. " % (k.ljust(20), v.start, v.end , v.count) 
+        print "%s%s\t %s ~ %s, %d records. " % (k.ljust(10),v.name, v.start, v.end , v.count) 
 
 
 # memo of 'correl' 
@@ -224,7 +224,7 @@ def correlation_all(inventory_ranges, dbcur):
                 # print "%s %s" % (k1,k2)
             r_close,r_delta , row_num = correlation(dbcur, k1  , k2)
 
-            one_entry = data_struct.Correlation( k1, k2, r_close, r_delta, row_num) 
+            one_entry = data_struct.Correlation( k1, k2, r_close, r_delta, row_num, v1.name, v2.name) 
             correls.append( one_entry) 
 
             db_operator.save_correl_to_db( dbcur , one_entry)
@@ -247,8 +247,9 @@ def correlation_all(inventory_ranges, dbcur):
     html_file.write("<html><body>\n" )
 
     for cor  in correls_sorted:
-        html_file.write("<a href=%s_%s.html> %s - %s </a>: 收盘价相关度=%f, 涨跌幅相关度=%f, 记录数 = %d\n "
-                % (cor.code1, cor.code2, cor.code1, cor.code2
+        html_file.write("<a href=%s_%s.html> %s%s - %s%s </a>: 收盘价相关度=%f, 涨跌幅相关度=%f, 记录数 = %d\n "
+                % (cor.code1, cor.code2
+                    , cor.code1, cor.name1,cor.code2,cor.name2 
                     , cor.r_close , cor.r_delta , cor.record_num )
                 )
         html_file.write("&nbsp;&nbsp; <a href=%s_%s.diff.html> 'chart of diff'</a><br>\n "
