@@ -9,7 +9,7 @@
 -------
 
 ###  Fedora:
-   sudo yum install python-xlrd sqlite
+   sudo yum install  sqlite
 
 ###  Windows:
    to be done.
