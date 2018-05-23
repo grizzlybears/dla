@@ -34,8 +34,8 @@ def generate_his_csv( code1, code2, logged_his):
 
     the_file.close()
     
-def generate_his_htm_chart( code1, code2, logged_his):
-    filename = "%s/%s_%s.html" % (data_struct.WORKING_DIR, code1, code2)
+def generate_his_htm_chart( sec1, sec2, logged_his):
+    filename = "%s/%s_%s.html" % (data_struct.WORKING_DIR, sec1.code, sec2.code)
     html_file = io.open( filename, "wb" )
 
     template_A_file = io.open( data_struct.TEMPL_A , "r") 
@@ -46,7 +46,11 @@ def generate_his_htm_chart( code1, code2, logged_his):
     template_B = str( template_B_file.read())
     template_B_file.close()
 
-    html_file.write( template_A.replace( '$title$' , "%s %s" % (code1,code2) ) )
+    html_file.write( 
+            template_A.replace( 
+                '$title$' , "%s %s" % ( str(sec1) ,str(sec2) ) 
+                )
+            )
 
     html_file.write( str( logged_his).decode('string_escape'))
 
@@ -55,8 +59,8 @@ def generate_his_htm_chart( code1, code2, logged_his):
 
     html_file.close()
  
-def generate_diff_htm_chart( code1, code2, diff_his):
-    filename = "%s/%s_%s.diff.html" % (data_struct.WORKING_DIR, code1, code2)
+def generate_diff_htm_chart( sec1, sec2, diff_his):
+    filename = "%s/%s_%s.diff.html" % (data_struct.WORKING_DIR, sec1.code, sec2.code)
     html_file = io.open( filename, "wb" )
 
     template_A_file = io.open( data_struct.TEMPL_A , "r") 
@@ -67,7 +71,11 @@ def generate_diff_htm_chart( code1, code2, diff_his):
     template_B = str( template_B_file.read())
     template_B_file.close()
 
-    html_file.write( template_A.replace( '$title$' , "diff of (%s - %s)" % (code1,code2) ) )
+    html_file.write( 
+        template_A.replace( 
+            '$title$' , "diff of (%s - %s)" % (str(sec1), str(sec2))
+            )
+        )
 
     html_file.write( str( diff_his).decode('string_escape'))
 
@@ -76,7 +84,7 @@ def generate_diff_htm_chart( code1, code2, diff_his):
 
     html_file.close()
      
-def correlation( dbcur,code1, code2):
+def correlation( dbcur, sec1, sec2):
 
     dbcur.execute ('''select a.t_day, a.close, a.delta_r, b.close, b.delta_r 
         from MdHis a , MdHis b
@@ -86,7 +94,7 @@ def correlation( dbcur,code1, code2):
             and a.delta_r is not null and b.delta_r is not null
         order by a.t_day 
         '''
-        , (code1 ,code2)
+        , (sec1.code ,sec2.code)
         )
    
    #
@@ -111,11 +119,11 @@ def correlation( dbcur,code1, code2):
 
     logged_his= []
 
-    fieldnames = ['T_Day', "%s logged" % code1, "%s logged" % code2]
+    fieldnames = ['T_Day', str(sec1), str(sec2)]
     logged_his.append( fieldnames );
 
     diff_his = []
-    diff_his.append( ['T_Day', "%s - %s" % (code1, code2) ]  )
+    diff_his.append( ['T_Day', "%s - %s" % (str(sec1), str(sec2)) ]  )
 
 
     row_num = 0
@@ -172,8 +180,8 @@ def correlation( dbcur,code1, code2):
     r_close,p2  = pearsonr(v_c1 ,v_c2 )
 
     #generate_his_csv( code1, code2, logged_his)
-    generate_his_htm_chart( code1, code2, logged_his)
-    generate_diff_htm_chart( code1, code2, diff_his)
+    generate_his_htm_chart( sec1, sec2, logged_his)
+    generate_diff_htm_chart( sec1, sec2, diff_his)
 
     return ( r_close, r_delta, row_num )
 
@@ -222,7 +230,7 @@ def correlation_all(inventory_ranges, dbcur):
             if k1 <= k2:
                 continue;
                 # print "%s %s" % (k1,k2)
-            r_close,r_delta , row_num = correlation(dbcur, k1  , k2)
+            r_close,r_delta , row_num = correlation(dbcur, v1  , v2)
 
             one_entry = data_struct.Correlation( k1, k2, r_close, r_delta, row_num, v1.name, v2.name) 
             correls.append( one_entry) 

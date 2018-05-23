@@ -211,8 +211,20 @@ def handle_correl( argv, argv0 = MY_NAME ):
         # real stuff
         code1 = argv[0]
         code2 = argv[1]
-        r_close,r_delta = analyzer.correlation(dbcur, code1 , code2)
-        print "%s %s , 收盘价关联度 = %f，涨跌幅关联度 = %f" % ( code1, code2, r_close, r_delta )
+
+        if code1 not in inventory_ranges:
+            print "%s not exists." % code1
+            return 1 
+        
+        if code2 not in inventory_ranges:
+            print "%s not exists." % code2
+            return 1
+
+        sec1 = inventory_ranges[code1]
+        sec2 = inventory_ranges[code2]
+
+        r_close,r_delta, num = analyzer.correlation(dbcur, sec1, sec2)
+        print "%s %s , 收盘价关联度 = %f，涨跌幅关联度 = %f" % ( str(sec1), str(sec2), r_close, r_delta )
         
         # DB clean up
         conn.commit()

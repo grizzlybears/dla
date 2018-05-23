@@ -123,7 +123,14 @@ class TDayRange:
     start = ""
     end   = ""
     count = 0
-    name  = ""
+    name  = "" 
+    
+    #def __repr__(self):
+    #    return "%s(%s)" % (self.code, self.name)
+
+    def __str__(self):
+        return "%s(%s)" % (self.code, self.name)
+
 
 
 class Correlation(object):
@@ -179,4 +186,10 @@ class SecurityInfo:
 
     def dump(self):
         print "%s (%s) in %s" % (self.code, self.name, self.dirpath)
+
+    def __repr__(self):
+        return "%s(%s)" % (self.code, self.name)
+
+    def __str__(self):
+        return "%s(%s)" % (self.code, self.name)
 
