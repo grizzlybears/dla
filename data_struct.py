@@ -19,6 +19,9 @@ class MdRecord:
     #代码
     code = ""
 
+    #名称
+    name = "" # 只有daily文件里有
+
     #交易日 YYYY-MM-DD
     t_day = ""
 
@@ -75,7 +78,7 @@ class MdRecord:
         # Bank.txt.utf8 ==> 'Bank'
         self.code = src.split('.')[0]
 
-    def load_from_csvrow( self, row):
+    def load_from_his_csv_row( self, row):
 
         # '时间': '2018-05-07,一'
         self.t_day = row['时间'].split(',')[0]
@@ -115,6 +118,65 @@ class MdRecord:
             self.volume = None
         else:
             self.volume = float(t)
+
+    def load_from_daily_csv_row( self, filepath, row, yyyymmdd):
+        #代码       名称
+        #SH000001	上证指数
+
+        t = row['代码'] 
+        
+        ma =  re.match( '^.+(\d{6})$' , t )
+        if ma:
+            #是 <交易所><6位代码> 的格式
+            self.code = ma.group(1)
+        else: 
+            print "%s, csv文件格式有异，'代码' 不是<交易所><6位代码> 的格式，而是'%s'" % (filepath, t)
+            return False
+        
+        if row.has_key('名称'):
+            self.name = row['名称']
+        else:
+            self.name = row['名称    ']
+
+        self.t_day = "%s-%s-%s" % ( yyyymmdd[0:4] , yyyymmdd[4:6], yyyymmdd[6:8] )
+
+        # '开盘': '6209.73'
+        t = row['开盘']
+        if '--' == t :
+            self.open_price = None
+        else:
+            self.open_price = float(t)
+
+        # '收盘': '1004.71' 
+        t = row['现价']
+        if '--' == t :
+            self.close_price = None
+        else:
+            self.close_price = float(t)
+
+        # '涨幅%': '1.23'  其实是 1.23% 的意思 
+        if row.has_key('涨幅%'): 
+            t = row['涨幅%'].split('%')[0]
+        else:
+            t = row['涨幅'].split('%')[0]
+        
+        if '--' == t :
+            self.delta_r = None
+        else:
+            self.delta_r = float(t)
+
+        # '总手(万)': '499848920'
+        if row.has_key('总手(万)'): 
+            t = row['总手(万)']
+        else:
+            t = row['总手'].replace(',', '')
+
+        if '--' == t :
+            self.volume = None
+        else:
+            self.volume = float(t)
+    
+        return True
 
 
 # 时间范围 YYYY-MM-DD
@@ -162,11 +224,13 @@ class Correlation(object):
  
 class SecurityInfo:
     def __init__(self):
-        self.dir_path  = ""
+        self.dirpath  = ""
         self.code = ""
         self.name = ""
 
-    def __init__( self, filepath):
+    
+
+    def parse_from_filepath( self, filepath):
         self.dirpath = os.path.dirname( filepath)
 
         basename = os.path.basename( filepath )

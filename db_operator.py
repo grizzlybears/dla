@@ -216,3 +216,16 @@ def save_sec_info_to_db( dbcur, info):
     dbcur.connection.commit()
 
 
+def save_sec_info_to_db_if_not_exists( dbcur, info): 
+    dbcur.execute( '''
+                insert into SecurityInfo (code,name,dir)
+                select ? , ? ,?
+                where 
+                   not exists (select 1 from SecurityInfo  where  code = ? )
+                 '''
+                , ( info.code , info.name  , info.dirpath , info.code       )
+                )
+
+    dbcur.connection.commit()
+
+

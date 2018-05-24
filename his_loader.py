@@ -11,10 +11,14 @@ import data_struct
 
 def check_col_name( filename,row, col_name):
     if col_name not in row:
+        s = str(row).decode('string_escape').decode('utf8')  #  能显示 DectReader吐的中文
+        print s
         raise Exception("%s, csv文件格式有异，没有列'%s'" % (filename,col_name)  )
 
 def check_col_name2( filename,row, col1,col2):
-    if col1 not in row  and col2 not in row:
+    if col1 not in row  and col2 not in row: 
+        s = str(row).decode('string_escape').decode('utf8')  #  能显示 DectReader吐的中文
+        print s
         raise Exception("%s, csv文件格式有异，没有列'%s'" % (filename,col1)  )
 
 
@@ -24,7 +28,7 @@ def verify_his_csv_format( filename, row ):
     col_num = len(row)
 
     if  col_num < 11:
-        raise Exception("%s, csv文件格式有异，不满11列" % filename  )
+        raise Exception("%s, 历史行情csv文件格式有异，不满11列" % filename  )
 
     check_col_name( filename, row, '时间')
     check_col_name( filename, row, '开盘')
@@ -39,6 +43,29 @@ def verify_his_csv_format( filename, row ):
     #check_col_name( filename, row, '金额(亿)')
     
     return
+
+def verify_daily_csv_format( filename, row ):
+
+    col_num = len(row)
+
+    if  col_num < 14:
+        raise Exception("%s, 每日行情汇总csv文件格式有异，不满14列" % filename  )
+
+    check_col_name( filename, row, '代码')
+    check_col_name( filename, row, '开盘')
+    check_col_name( filename, row, '现价')#就是 '收盘'
+    check_col_name( filename, row, '最高')
+    check_col_name( filename, row, '最低')
+    check_col_name2( filename, row,'涨幅', '涨幅%')
+    check_col_name2( filename, row,'总手', '总手(万)')
+    check_col_name2( filename, row, '金额', '金额(亿)')
+
+    #check_col_name( filename, row, '总手(万)')
+    #check_col_name( filename, row, '金额(亿)')
+    
+    check_col_name2( filename, row, '名称', '名称    ')
+    return
+
 
 def load_some(filepath,dbcur, inventory_ranges ):
     basename = os.path.basename( filepath )
@@ -61,7 +88,36 @@ def load_some(filepath,dbcur, inventory_ranges ):
     #SH000004	工业指数	--	2618.51	1.54	+1.88%	+4.68%	+4.63%	-0.78%	+39.72	113509645000	657100	8721595800	2577.09	2618.67	2574.33	1.72	1.12	
     #....
 def load_daily_md(filepath, yyyymmdd, dbcur, inventory_ranges ):
-    return 
+    with  io.open( filepath, "r", encoding='utf-8') as the_file:
+        reader = csv.DictReader( the_file, dialect = 'excel-tab')
+
+        row_num = 0
+        
+        for row in reader:
+            row_num +=1
+
+            if 1== row_num:
+                verify_daily_csv_format(filepath, row ) 
+        
+            md_record = data_struct.MdRecord()
+            r = md_record.load_from_daily_csv_row( filepath, row, yyyymmdd)
+
+            if  not r:
+                continue
+            
+            # 如果某证券从未由‘历史’文件倒入过，那么不会在SecurityInfo里有记录，所以
+            # 不能  if  md_record.code  not in  inventory_ranges: xxxx
+            #
+
+            info = data_struct.SecurityInfo( )
+            info.code = md_record.code 
+            info.name = md_record.name 
+            #info.dump()
+            db_operator.save_sec_info_to_db_if_not_exists(dbcur, info)
+
+            db_operator.save_MD_to_db( dbcur, md_record)
+    
+    print "%s was imported" % filepath
 
     # 读入行情历史文件
     # 格式:
@@ -81,7 +137,8 @@ def load_md_his(filepath ,dbcur, inventory_ranges ):
 
     row_num = 0
             
-    info = data_struct.SecurityInfo( filepath )
+    info = data_struct.SecurityInfo( ) 
+    info.parse_from_filepath( filepath )
     the_code = info.code
     #info.dump()
     db_operator.save_sec_info_to_db(dbcur, info)
@@ -106,7 +163,7 @@ def load_md_his(filepath ,dbcur, inventory_ranges ):
 
         md_record =  data_struct.MdRecord()
         md_record.code = the_code 
-        md_record.load_from_csvrow( row)
+        md_record.load_from_his_csv_row( row)
         #md_record.dump()
 
         if the_range is not None \

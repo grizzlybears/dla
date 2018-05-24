@@ -1,4 +1,5 @@
 *.pyc
+*.swp
 working_dir/*.html
 working_dir/*.db
 working_dir/*.js
