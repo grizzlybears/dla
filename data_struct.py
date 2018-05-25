@@ -111,8 +111,10 @@ class MdRecord:
         # '总手(万)': '499848920'
         if row.has_key('总手(万)'): 
             t = row['总手(万)']
-        else:
+        elif row.has_key('总手'):
             t = row['总手'].replace(',', '')
+        else:
+            t = '--'
 
         if '--' == t :
             self.volume = None

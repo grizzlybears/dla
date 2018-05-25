@@ -126,8 +126,29 @@ def get_inventory2(dbcur):
     
     return r
 
+
+def get_sec_info(dbcur):
+    dbcur.execute ('''
+        select code, name, dir 
+        from SecurityInfo 
+        ''')
+    r = {}
+
+    row = dbcur.fetchone()
+    while row is not None:
+        one_entry =  data_struct.SecurityInfo()
+        one_entry.code  = row[0]
+        one_entry.name  = row[1]
+        one_entry.dirpath   = row[2]
+        
+        r[row[0]] = one_entry 
+    
+        row = dbcur.fetchone()
+    
+    return r
+
 def save_MD_to_db( dbcur, md): 
-    dbcur.execute( '''insert into  MdHis(
+    dbcur.execute( '''insert or replace into  MdHis(
                 code , t_day
                 , open , close 
                 , delta_r
@@ -160,9 +181,6 @@ def gen_alpha( dbcur, base_code , target_code):
         )
 
     r = dbcur.rowcount 
-
-    dbcur.connection.commit()
-
     return r
 
 
@@ -173,7 +191,6 @@ def save_setting_basecode( dbcur, base_code ):
             , ('base_code', base_code)
             )
 
-    dbcur.connection.commit()
 
 def save_correl_to_db( dbcur, correl): 
 
@@ -189,7 +206,6 @@ def save_correl_to_db( dbcur, correl):
                   )
                 )
 
-    dbcur.connection.commit()
 
 def show_correl():
     sql = ''' select *  
@@ -213,8 +229,6 @@ def save_sec_info_to_db( dbcur, info):
                   )
                 )
 
-    dbcur.connection.commit()
-
 
 def save_sec_info_to_db_if_not_exists( dbcur, info): 
     dbcur.execute( '''
@@ -226,6 +240,5 @@ def save_sec_info_to_db_if_not_exists( dbcur, info):
                 , ( info.code , info.name  , info.dirpath , info.code       )
                 )
 
-    dbcur.connection.commit()
 
 

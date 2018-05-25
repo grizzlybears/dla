@@ -57,8 +57,8 @@ def verify_daily_csv_format( filename, row ):
     check_col_name( filename, row, '最高')
     check_col_name( filename, row, '最低')
     check_col_name2( filename, row,'涨幅', '涨幅%')
-    check_col_name2( filename, row,'总手', '总手(万)')
-    check_col_name2( filename, row, '金额', '金额(亿)')
+    check_col_name2( filename, row,'总手', '总手(万)')    #自选xls 里没有'总手'
+    check_col_name2( filename, row, '金额', '金额(亿)')   #自选xls 只有‘总金额’
 
     #check_col_name( filename, row, '总手(万)')
     #check_col_name( filename, row, '金额(亿)')
@@ -90,7 +90,9 @@ def load_some(filepath,dbcur, inventory_ranges ):
 def load_daily_md(filepath, yyyymmdd, dbcur, inventory_ranges ):
     with  io.open( filepath, "r", encoding='utf-8') as the_file:
         reader = csv.DictReader( the_file, dialect = 'excel-tab')
-
+        
+        sec_info = db_operator.get_sec_info(dbcur)
+        
         row_num = 0
         
         for row in reader:
@@ -109,13 +111,16 @@ def load_daily_md(filepath, yyyymmdd, dbcur, inventory_ranges ):
             # 不能  if  md_record.code  not in  inventory_ranges: xxxx
             #
 
-            info = data_struct.SecurityInfo( )
-            info.code = md_record.code 
-            info.name = md_record.name 
-            #info.dump()
-            db_operator.save_sec_info_to_db_if_not_exists(dbcur, info)
+            if md_record not in sec_info:
+                info = data_struct.SecurityInfo( )
+                info.code = md_record.code 
+                info.name = md_record.name 
+                #info.dump()
+                db_operator.save_sec_info_to_db_if_not_exists(dbcur, info)
 
             db_operator.save_MD_to_db( dbcur, md_record)
+   
+    dbcur.connection.commit()
     
     print "%s was imported" % filepath
 
