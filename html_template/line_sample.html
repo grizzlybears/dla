@@ -1,29 +1,14 @@
   <html>
   <head>
     <script type="text/javascript" src="../jslib/ggchart_loader.js"></script>
+    <script type="text/javascript" src="line_sample.data.js"></script>
     <script type="text/javascript">
       google.charts.load('current', {'packages':['corechart']});
       google.charts.setOnLoadCallback(drawChart);
 
       function drawChart() {
 
-          var header = [ 
-              ['Year', 'Sales', 'Expenses']  
-          ];
-
-          var raw_data = [
-          ['2004',  1000,      400],
-          ['2005',  1170,      460],
-          ['2006',  660,       1120],
-          ['2007',  1030,      540] 
-          ,['2008',  900,      480]
-          ,['2009',  1070,      490]
-          ,['2010',  690,       920]
-          ,['2011',  990,      780]
-
-        ];
-
-        var options = {
+       var options = {
           title: 'Company Performance',
           curveType: 'function',
           legend: { position: 'bottom' }
