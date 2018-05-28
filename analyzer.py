@@ -34,31 +34,117 @@ def generate_his_csv( code1, code2, logged_his):
 
     the_file.close()
     
-def generate_his_htm_chart( sec1, sec2, logged_his):
-    filename = "%s/%s_%s.html" % (data_struct.WORKING_DIR, sec1.code, sec2.code)
-    html_file = io.open( filename, "wb" )
+def array_content_to_file(the_file, var_name, the_array): 
+    the_file.write( "var %s = \n" % var_name  );
+    the_file.write( str( the_array).decode('string_escape'))
+    the_file.write( "\n;\n"   );
 
-    template_A_file = io.open( data_struct.TEMPL_A , "r") 
-    template_A = str( template_A_file.read() )
-    template_A_file.close()
 
-    template_B_file = io.open( data_struct.TEMPL_B , "r") 
-    template_B = str( template_B_file.read())
-    template_B_file.close()
 
-    html_file.write( 
-            template_A.replace( 
-                '$title$' , "%s %s" % ( str(sec1) ,str(sec2) ) 
+def generate_js_data( sec1, sec2, logged_his):
+    filename = "%s/%s_%s.js" % (data_struct.WORKING_DIR, sec1.code, sec2.code)
+    with io.open( filename, "wb" ) as js_file:
+        array_content_to_file( js_file, "header" , logged_his[0:1])
+        array_content_to_file( js_file, "raw_data" , logged_his[1:])
+
+
+
+
+def write_chart_html_header( the_file, sec1, sec2):
+    the_file.write(" <html>\n<head>\n<title>%s %s</title>\n" % ( str(sec1) ,str(sec2) ))
+
+    the_file.write(" <script type=\"text/javascript\" src=\"ggchart_loader.js\"></script>\n")
+    the_file.write(" <script type=\"text/javascript\" src=\"%s_%s.js\"></script>\n" % (sec1.code, sec2.code))
+ 
+    the_file.write( 
+    '''
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
+
+      function drawChart() {
+      ''');
+    
+
+def draw_chart_full( the_file, sec1, sec2):
+
+    s = '''
+        var options = {
+          title: '$title$',
+          curveType: 'function',
+          legend: { position: 'bottom' }
+          , height:550
+        };
+
+        var chart1 = new google.visualization.LineChart(document.getElementById('curve_chart1'));
+        var data1 = google.visualization.arrayToDataTable(
+                header.concat( raw_data)
+                );
+        chart1.draw(data1, options);
+
+
+        '''
+    the_file.write( 
+            s.replace( 
+                '$title$' , "%s %s, history" % ( str(sec1) ,str(sec2) ) 
                 )
             )
+def chart_div_full(the_file):    
+    the_file.write(" <div id=\"curve_chart1\" ></div>\n")
 
-    html_file.write( str( logged_his).decode('string_escape'))
 
-    html_file.write( "\n")
-    html_file.write( template_B.replace('$more_chart_options$', '' ) )
+def draw_chart_last_x( the_file, sec1, sec2, x , subvar): 
 
-    html_file.close()
+    the_file.write( " var options_%d = { title: '%s %s, last %d', curveType: 'function', legend: { position: 'bottom' } , height:550  };\n" 
+                % (subvar, str(sec1) ,str(sec2), x )
+                )
+
+    the_file.write("    var chart_%d = new google.visualization.LineChart(document.getElementById('curve_chart_%d'));\n" 
+            %  (subvar, subvar)
+            )
  
+    the_file.write("    var data_%d = google.visualization.arrayToDataTable( header.concat( raw_data.slice( - %d  ) ));\n" 
+            % (subvar, x ) 
+            )
+
+    the_file.write("    chart_%d.draw(data_%d, options_%d);\n\n" % (subvar, subvar,  subvar) 
+            )
+
+def chart_div_subvar(the_file, subvar):    
+    the_file.write(" <div id=\"curve_chart_%d\"></div>\n" % subvar)
+
+def head_end_body_begin( the_file):
+    the_file.write("}\n </script>\n </head>\n <body>\n")
+
+
+def html_end( the_file):
+    the_file.write(" </body>\n</html>\n")
+
+
+def generate_his_htm_chart( sec1, sec2, logged_his):
+    generate_js_data( sec1, sec2, logged_his)
+    
+    filename = "%s/%s_%s.html" % (data_struct.WORKING_DIR, sec1.code, sec2.code)
+    with io.open( filename, "wb" ) as the_file:
+        write_chart_html_header( the_file, sec1, sec2) 
+        draw_chart_full( the_file, sec1, sec2)
+
+        if len(logged_his) > 1000:
+            draw_chart_last_x( the_file, sec1, sec2, 600 , 1 )
+            draw_chart_last_x( the_file, sec1, sec2, 300 , 2 )
+
+        head_end_body_begin( the_file)
+        chart_div_full(the_file)
+        
+        if len(logged_his) > 1000:
+        
+            chart_div_subvar( the_file,1 )
+            chart_div_subvar( the_file,2 )
+
+        html_end( the_file)
+
+
+
 def generate_diff_htm_chart( sec1, sec2, diff_his):
     filename = "%s/%s_%s.diff.html" % (data_struct.WORKING_DIR, sec1.code, sec2.code)
     html_file = io.open( filename, "wb" )
@@ -180,6 +266,7 @@ def correlation( dbcur, sec1, sec2):
     r_close,p2  = pearsonr(v_c1 ,v_c2 )
 
     #generate_his_csv( code1, code2, logged_his)
+    #generate_his_htm_chart( sec1, sec2, logged_his[:100])
     generate_his_htm_chart( sec1, sec2, logged_his)
     generate_diff_htm_chart( sec1, sec2, diff_his)
 
