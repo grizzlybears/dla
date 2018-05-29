@@ -41,21 +41,20 @@ def array_content_to_file(the_file, var_name, the_array):
 
 
 
-def generate_js_data( sec1, sec2, logged_his):
-    filename = "%s/%s_%s.js" % (data_struct.WORKING_DIR, sec1.code, sec2.code)
-    with io.open( filename, "wb" ) as js_file:
+def generate_js_data( jsfilename, sec1, sec2, logged_his):
+    with io.open( jsfilename, "wb" ) as js_file:
         array_content_to_file( js_file, "header" , logged_his[0:1])
         array_content_to_file( js_file, "raw_data" , logged_his[1:])
 
 
 
 
-def write_chart_html_header( the_file, sec1, sec2):
+def write_chart_html_header( the_file, jsfilename, sec1, sec2):
     the_file.write(" <html>\n<head>\n<title>%s %s</title>\n" % ( str(sec1) ,str(sec2) ))
 
     the_file.write(" <script type=\"text/javascript\" src=\"ggchart_loader.js\"></script>\n")
-    the_file.write(" <script type=\"text/javascript\" src=\"%s_%s.js\"></script>\n" % (sec1.code, sec2.code))
- 
+    the_file.write(" <script type=\"text/javascript\" src=\"%s\"></script>\n" %  jsfilename )
+
     the_file.write( 
     '''
     <script type="text/javascript">
@@ -66,7 +65,7 @@ def write_chart_html_header( the_file, sec1, sec2):
       ''');
     
 
-def draw_chart_full( the_file, sec1, sec2):
+def draw_chart_full( the_file, sec1, sec2, additional_options = ""):
 
     s = '''
         var options = {
@@ -74,6 +73,7 @@ def draw_chart_full( the_file, sec1, sec2):
           curveType: 'function',
           legend: { position: 'bottom' }
           , height:550
+          %s
         };
 
         var chart1 = new google.visualization.LineChart(document.getElementById('curve_chart1'));
@@ -83,7 +83,8 @@ def draw_chart_full( the_file, sec1, sec2):
         chart1.draw(data1, options);
 
 
-        '''
+        ''' % additional_options 
+
     the_file.write( 
             s.replace( 
                 '$title$' , "%s %s, history" % ( str(sec1) ,str(sec2) ) 
@@ -93,10 +94,17 @@ def chart_div_full(the_file):
     the_file.write(" <div id=\"curve_chart1\" ></div>\n")
 
 
-def draw_chart_last_x( the_file, sec1, sec2, x , subvar): 
+def draw_chart_last_x( the_file, sec1, sec2, x , subvar , additional_options = "" ): 
 
-    the_file.write( " var options_%d = { title: '%s %s, last %d', curveType: 'function', legend: { position: 'bottom' } , height:550  };\n" 
-                % (subvar, str(sec1) ,str(sec2), x )
+    the_file.write( 
+            '''var options_%d = { 
+                title: '%s %s, last %d', 
+                curveType: 'function', 
+                legend: { position: 'bottom' } , height:550
+                %s  
+                };\n
+                '''
+                % (subvar, str(sec1) ,str(sec2), x , additional_options )
                 )
 
     the_file.write("    var chart_%d = new google.visualization.LineChart(document.getElementById('curve_chart_%d'));\n" 
@@ -122,12 +130,15 @@ def html_end( the_file):
 
 
 def generate_his_htm_chart( sec1, sec2, logged_his):
-    generate_js_data( sec1, sec2, logged_his)
     
+    jsfilename = "%s_%s.js" % ( sec1.code, sec2.code)
+    jsfilepath = "%s/%s" % (data_struct.WORKING_DIR, jsfilename) 
+    generate_js_data(jsfilepath,  sec1, sec2, logged_his )
+ 
     filename = "%s/%s_%s.html" % (data_struct.WORKING_DIR, sec1.code, sec2.code)
     with io.open( filename, "wb" ) as the_file:
-        write_chart_html_header( the_file, sec1, sec2) 
-        draw_chart_full( the_file, sec1, sec2)
+        write_chart_html_header( the_file, jsfilename,  sec1, sec2) 
+        draw_chart_full( the_file, sec1, sec2,  )
 
         if len(logged_his) > 1000:
             draw_chart_last_x( the_file, sec1, sec2, 600 , 1 )
@@ -145,30 +156,57 @@ def generate_his_htm_chart( sec1, sec2, logged_his):
 
 
 
-def generate_diff_htm_chart( sec1, sec2, diff_his):
+def generate_diff_htm_chart( sec1, sec2, diff_his): 
+    
+    jsfilename = "%s_%s.diff.js" % ( sec1.code, sec2.code)
+    jsfilepath = "%s/%s" % (data_struct.WORKING_DIR, jsfilename) 
+    generate_js_data(jsfilepath,  sec1, sec2, diff_his )
+    
     filename = "%s/%s_%s.diff.html" % (data_struct.WORKING_DIR, sec1.code, sec2.code)
-    html_file = io.open( filename, "wb" )
 
-    template_A_file = io.open( data_struct.TEMPL_A , "r") 
-    template_A = str( template_A_file.read() )
-    template_A_file.close()
+    additional_options =  ',colors: [\'black\']' 
+    with io.open( filename, "wb" ) as the_file:
+        write_chart_html_header( the_file, jsfilename, sec1, sec2) 
+        draw_chart_full( the_file, sec1, sec2, additional_options  )
 
-    template_B_file = io.open( data_struct.TEMPL_B , "r") 
-    template_B = str( template_B_file.read())
-    template_B_file.close()
+        if len(diff_his) > 1000:
+            draw_chart_last_x( the_file, sec1, sec2, 600 , 1 , additional_options  )
+            draw_chart_last_x( the_file, sec1, sec2, 300 , 2 , additional_options  )
 
-    html_file.write( 
-        template_A.replace( 
-            '$title$' , "diff of (%s - %s)" % (str(sec1), str(sec2))
-            )
-        )
+        head_end_body_begin( the_file)
+        chart_div_full(the_file)
+        
+        if len(diff_his) > 1000:
+        
+            chart_div_subvar( the_file,1 )
+            chart_div_subvar( the_file,2 )
 
-    html_file.write( str( diff_his).decode('string_escape'))
+        html_end( the_file)
 
-    html_file.write( "\n")
-    html_file.write( template_B.replace('$more_chart_options$', ',colors: [\'black\']' ) )
 
-    html_file.close()
+    #filename = "%s/%s_%s.diff.html" % (data_struct.WORKING_DIR, sec1.code, sec2.code)
+    #html_file = io.open( filename, "wb" )
+
+    #template_A_file = io.open( data_struct.TEMPL_A , "r") 
+    #template_A = str( template_A_file.read() )
+    #template_A_file.close()
+
+    #template_B_file = io.open( data_struct.TEMPL_B , "r") 
+    #template_B = str( template_B_file.read())
+    #template_B_file.close()
+
+    #html_file.write( 
+    #    template_A.replace( 
+    #        '$title$' , "diff of (%s - %s)" % (str(sec1), str(sec2))
+    #        )
+    #    )
+
+    #html_file.write( str( diff_his).decode('string_escape'))
+
+    #html_file.write( "\n")
+    #html_file.write( template_B.replace('$more_chart_options$', ',colors: [\'black\']' ) )
+
+    #html_file.close()
      
 def correlation( dbcur, sec1, sec2):
 
