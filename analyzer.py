@@ -7,6 +7,7 @@ import csv
 
 import db_operator 
 import data_struct
+import plotter
 
 from scipy.stats.stats import pearsonr
 
@@ -22,199 +23,6 @@ def print_inventory(inventory_ranges):
 # http://www.statisticshowto.com/probability-and-statistics/correlation-coefficient-formula/
 #
 # https://stackoverflow.com/questions/3949226/calculating-pearson-correlation-and-significance-in-python#
-
-def generate_his_csv( code1, code2, logged_his):
-    filename = "%s/%s_%s.csv" % (data_struct.WORKING_DIR, code1, code2)
-    #the_file = io.open( filename, "w", encoding='utf-8')
-    the_file = io.open( filename, "wb" )
-
-    writer = csv.writer(the_file)
-    #writer.writerow ( fieldnames)
-    writer.writerows ( logged_his)
-
-    the_file.close()
-    
-def array_content_to_file(the_file, var_name, the_array): 
-    the_file.write( "var %s = \n" % var_name  );
-    the_file.write( str( the_array).decode('string_escape'))
-    the_file.write( "\n;\n"   );
-
-
-
-def generate_js_data_w_head( jsfilename,  logged_his):
-    with io.open( jsfilename, "wb" ) as js_file:
-        array_content_to_file( js_file, "header" , logged_his[0:1])
-        array_content_to_file( js_file, "raw_data" , logged_his[1:])
-
-def generate_js_head_n_data( jsfilename, header, data ):
-    with io.open( jsfilename, "wb" ) as js_file:
-        array_content_to_file( js_file, "header" , [header])
-        array_content_to_file( js_file, "raw_data" , data)
-
-def write_chart_html_header( the_file, jsfilename, sec1, sec2):
-    the_file.write(" <html>\n<head>\n<title>%s %s</title>\n" % ( str(sec1) ,str(sec2) ))
-
-    the_file.write(" <script type=\"text/javascript\" src=\"ggchart_loader.js\"></script>\n")
-    the_file.write(" <script type=\"text/javascript\" src=\"%s\"></script>\n" %  jsfilename )
-
-    the_file.write( 
-    '''
-    <script type="text/javascript">
-      google.charts.load('current', {'packages':['corechart']});
-      google.charts.setOnLoadCallback(drawChart);
-
-      function drawChart() {
-      ''');
-    
-
-def draw_chart_full( the_file, sec1, sec2, additional_options = ""):
-
-    s = '''
-        var options = {
-          title: '$title$',
-          curveType: 'function',
-          legend: { position: 'bottom' }
-          , height:550
-          %s
-        };
-
-        var chart1 = new google.visualization.LineChart(document.getElementById('curve_chart1'));
-        var data1 = google.visualization.arrayToDataTable(
-                header.concat( raw_data)
-                );
-        chart1.draw(data1, options);
-
-
-        ''' % additional_options 
-
-    the_file.write( 
-            s.replace( 
-                '$title$' , "%s %s, history" % ( str(sec1) ,str(sec2) ) 
-                )
-            )
-def chart_div_full(the_file):    
-    the_file.write(" <div id=\"curve_chart1\" ></div>\n")
-
-
-def draw_chart_last_x( the_file, sec1, sec2, x , subvar , additional_options = "" ): 
-
-    the_file.write( 
-            '''var options_%d = { 
-                title: '%s %s, last %d', 
-                curveType: 'function', 
-                legend: { position: 'bottom' } , height:550
-                %s  
-                };\n
-                '''
-                % (subvar, str(sec1) ,str(sec2), x , additional_options )
-                )
-
-    the_file.write("    var chart_%d = new google.visualization.LineChart(document.getElementById('curve_chart_%d'));\n" 
-            %  (subvar, subvar)
-            )
- 
-    the_file.write("    var data_%d = google.visualization.arrayToDataTable( header.concat( raw_data.slice( - %d  ) ));\n" 
-            % (subvar, x ) 
-            )
-
-    the_file.write("    chart_%d.draw(data_%d, options_%d);\n\n" % (subvar, subvar,  subvar) 
-            )
-
-def chart_div_subvar(the_file, subvar):    
-    the_file.write(" <div id=\"curve_chart_%d\"></div>\n" % subvar)
-
-def head_end_body_begin( the_file):
-    the_file.write("}\n </script>\n </head>\n <body>\n")
-
-
-def html_end( the_file):
-    the_file.write(" </body>\n</html>\n")
-
-
-def generate_htm_chart_3lines_w_annotation( sec1, sec2, bt ):
-    return 
-
-
-def generate_2lines_chart( line1_name, line2_name, data):
-    jsfilename = "%s_%s.js" % ( line1_name, line2_name)
-    jsfilepath = "%s/%s" % (data_struct.WORKING_DIR, jsfilename) 
-    generate_js_head_n_data (jsfilepath,  ['日期', line1_name, line2_name ] , data)
- 
-    filename = "%s/%s_%s.html" % (data_struct.WORKING_DIR, line1_name, line2_name)
-    with io.open( filename, "wb" ) as the_file:
-        write_chart_html_header( the_file, jsfilename, line1_name, line2_name ) 
-        draw_chart_full( the_file, line1_name, line2_name  )
-
-        if len(data) > 1000:
-            draw_chart_last_x( the_file, line1_name, line2_name , 600 , 1 )
-            draw_chart_last_x( the_file, line1_name, line2_name , 300 , 2 )
-
-        head_end_body_begin( the_file)
-        chart_div_full(the_file)
-        
-        if len(data) > 1000:
-        
-            chart_div_subvar( the_file,1 )
-            chart_div_subvar( the_file,2 )
-
-        html_end( the_file)
-
-
-
-def generate_his_htm_chart( sec1, sec2, logged_his):
-    
-    jsfilename = "%s_%s.js" % ( sec1.code, sec2.code)
-    jsfilepath = "%s/%s" % (data_struct.WORKING_DIR, jsfilename) 
-    generate_js_data_w_head(jsfilepath,  logged_his )
- 
-    filename = "%s/%s_%s.html" % (data_struct.WORKING_DIR, sec1.code, sec2.code)
-    with io.open( filename, "wb" ) as the_file:
-        write_chart_html_header( the_file, jsfilename,  sec1, sec2) 
-        draw_chart_full( the_file, sec1, sec2,  )
-
-        if len(logged_his) > 1000:
-            draw_chart_last_x( the_file, sec1, sec2, 600 , 1 )
-            draw_chart_last_x( the_file, sec1, sec2, 300 , 2 )
-
-        head_end_body_begin( the_file)
-        chart_div_full(the_file)
-        
-        if len(logged_his) > 1000:
-        
-            chart_div_subvar( the_file,1 )
-            chart_div_subvar( the_file,2 )
-
-        html_end( the_file)
-
-
-
-def generate_diff_htm_chart( sec1, sec2, diff_his): 
-    
-    jsfilename = "%s_%s.diff.js" % ( sec1.code, sec2.code)
-    jsfilepath = "%s/%s" % (data_struct.WORKING_DIR, jsfilename) 
-    generate_js_data_w_head(jsfilepath,   diff_his )
-    
-    filename = "%s/%s_%s.diff.html" % (data_struct.WORKING_DIR, sec1.code, sec2.code)
-
-    additional_options =  ',colors: [\'black\']' 
-    with io.open( filename, "wb" ) as the_file:
-        write_chart_html_header( the_file, jsfilename, sec1, sec2) 
-        draw_chart_full( the_file, sec1, sec2, additional_options  )
-
-        if len(diff_his) > 1000:
-            draw_chart_last_x( the_file, sec1, sec2, 600 , 1 , additional_options  )
-            draw_chart_last_x( the_file, sec1, sec2, 300 , 2 , additional_options  )
-
-        head_end_body_begin( the_file)
-        chart_div_full(the_file)
-        
-        if len(diff_his) > 1000:
-        
-            chart_div_subvar( the_file,1 )
-            chart_div_subvar( the_file,2 )
-
-        html_end( the_file)
-
 
      
 def correlation( dbcur, sec1, sec2):
@@ -242,8 +50,6 @@ def correlation( dbcur, sec1, sec2):
    #     '''
    #     , (code1 ,code2)
    #     )
-
-
 
     v_delta_r1 = []
     v_delta_r2 = []
@@ -314,29 +120,15 @@ def correlation( dbcur, sec1, sec2):
 
     #generate_his_csv( code1, code2, logged_his)
     #generate_his_htm_chart( sec1, sec2, logged_his[:100])
-    generate_his_htm_chart( sec1, sec2, logged_his)
-    generate_diff_htm_chart( sec1, sec2, diff_his)
+    plotter.generate_his_htm_chart( sec1, sec2, logged_his)
+    plotter.generate_diff_htm_chart( sec1, sec2, diff_his)
 
     return ( r_close, r_delta, row_num )
 
 
-# 模拟换马策略
-# Input:  2-D array 'logged_his'
-#         日期   脚1对数化收盘价     脚2对数化收盘价     脚1收盘价  脚2收盘价
-#         ...
-#
-# Output: 2-D array 
-#         日期   脚1对数化收盘价     脚2对数化收盘价   策略对数化收盘价  换仓提示  换仓详细  
-#         ...
-#
-def sim_faster_horse( sec1, sec2, logged_his, MA_Size = 20):
-    #我在excel里根据50和500的昨收，算出ln(50昨收)-ln(500昨收)，称为ln差价，ln差价求20日移动平均。
-    #如果ln差价小于20日平均，持有500，反之，持有50。
-    #持有50的话，当日收益为ln(50收盘)-ln(50昨收)，否则，为500的收益（当然，换股日的话，收益要减去0.0002。因为假设有万分之二的etf交易手续费）。
-    #然后，将50、500、持仓的每日收益分别累积，就画出了你看到的三根线。
-
-    # 2D 数组 :
-    #  日期, ln差价,  MA(20) of  ln差价
+# 2D 数组 :
+#  日期, ln差价,  MA(20) of  ln差价
+def generate_indices_for_faster_horse( logged_his, MA_Size = 20):
     indices = []
     MA_Sum = 0
     for index, row in enumerate( logged_his  ):
@@ -347,7 +139,6 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size = 20):
             
             #累加的窗口
             MA_Sum = MA_Sum + the_diff
-
 
             #部分MA
             MA = MA_Sum / (index + 1)
@@ -372,9 +163,36 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size = 20):
                     , MA
                 ] )
 
-    generate_2lines_chart( "ln%s-%s" % (str(sec1.code), str(sec2.code) )
-            , "MA%d" % MA_Size 
-            , indices[0:200] )
+    return indices 
+
+
+# 模拟换马策略
+# Input:  2-D array 'logged_his'
+#         日期   脚1对数化收盘价     脚2对数化收盘价     脚1收盘价  脚2收盘价
+#         ...
+#
+# Output: 2-D array 
+#         日期   脚1对数化收盘价     脚2对数化收盘价   策略对数化收盘价  换仓提示  换仓详细  
+#         ...
+#
+def sim_faster_horse( sec1, sec2, logged_his, MA_Size = 20):
+    #我在excel里根据50和500的昨收，算出ln(50昨收)-ln(500昨收)，称为ln差价，ln差价求20日移动平均。
+    #如果ln差价小于20日平均，持有500，反之，持有50。
+    #持有50的话，当日收益为ln(50收盘)-ln(50昨收)，否则，为500的收益（当然，换股日的话，收益要减去0.0002。因为假设有万分之二的etf交易手续费）。
+    #然后，将50、500、持仓的每日收益分别累积，就画出了你看到的三根线。
+
+    indices = generate_indices_for_faster_horse( logged_his, MA_Size)   
+
+    header = [
+        '日期'
+        , "%s-%s.ln" % (str(sec1.code), str(sec2.code) )
+        , "MA%d" % MA_Size 
+        ]
+
+    plotter.simple_generate_line_chart( 
+             header 
+            , indices
+            )
 
 
 def bt_faster_horse( dbcur, sec1, sec2):
@@ -439,7 +257,7 @@ def bt_faster_horse( dbcur, sec1, sec2):
     bt = sim_faster_horse(sec1,sec2, logged_his, 10)
     bt = sim_faster_horse(sec1,sec2, logged_his, 20)
 
-    generate_htm_chart_3lines_w_annotation( sec1, sec2, bt )
+    plotter.generate_htm_chart_3lines_w_annotation( sec1, sec2, bt )
     
     #net_value  =  math.exp( bt[len(bt)][3] ) 
     net_value  =  0
