@@ -276,8 +276,12 @@ def handle_bt_faster_horse( argv, argv0 = MY_NAME ):
         sec1 = inventory_ranges[code1]
         sec2 = inventory_ranges[code2]
 
-        net_value, num = analyzer.bt_faster_horse(dbcur, sec1, sec2)
-        print "%s %s ‘换快马’, %d 交易日，净值 %f" % ( str(sec1), str(sec2), num, net_value)
+        net_value, day_num, t_num, leg1 ,leg2 = analyzer.bt_faster_horse(dbcur, sec1, sec2)
+        print "%s %s ‘换快马’, %d 交易日，净值 %f, 换(建)仓 %d 次, 同期两脚净值 %f,%f"  % (
+                    str(sec1), str(sec2)
+                    , day_num, net_value, t_num
+                    , leg1, leg2
+                    )
         
         # DB clean up
         conn.commit()

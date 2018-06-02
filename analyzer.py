@@ -127,7 +127,7 @@ def correlation( dbcur, sec1, sec2):
 
 
 # 2D 数组 :
-#  日期, ln差价,  MA(20) of  ln差价
+#  日期, ln差价,  MA of  ln差价
 def generate_indices_for_faster_horse( logged_his, MA_Size = 20):
     indices = []
     MA_Sum = 0
@@ -135,7 +135,7 @@ def generate_indices_for_faster_horse( logged_his, MA_Size = 20):
 
         the_diff =  (row[1] -row[2])
 
-        if index <= (MA_Size - 1): 
+        if index < MA_Size : 
             
             #累加的窗口
             MA_Sum = MA_Sum + the_diff
@@ -166,6 +166,10 @@ def generate_indices_for_faster_horse( logged_his, MA_Size = 20):
     return indices 
 
 
+# 万三手续费
+TRANS_COST = math.log( 0.9997)  # −0.000300045
+
+
 # 模拟换马策略
 # Input:  2-D array 'logged_his'
 #         日期   脚1对数化收盘价     脚2对数化收盘价     脚1收盘价  脚2收盘价
@@ -181,18 +185,122 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size = 20):
     #持有50的话，当日收益为ln(50收盘)-ln(50昨收)，否则，为500的收益（当然，换股日的话，收益要减去0.0002。因为假设有万分之二的etf交易手续费）。
     #然后，将50、500、持仓的每日收益分别累积，就画出了你看到的三根线。
 
+
+    # 2D 数组 :
+    #  日期, ln差价,  MA of  ln差价
     indices = generate_indices_for_faster_horse( logged_his, MA_Size)   
 
-    header = [
-        '日期'
-        , "%s-%s.ln" % (str(sec1.code), str(sec2.code) )
-        , "MA%d" % MA_Size 
-        ]
+    result = []
+    trans_num = 0
+    we_hold = 0 # 0 表示'空仓'， 1 表示'脚1'， 2 表示'脚2'
+    for i, row in enumerate(indices):
+        
+        md_that_day = logged_his[i]  #当日行情
 
-    plotter.simple_generate_line_chart( 
-             header 
-            , indices
+        if i < MA_Size : 
+            # MA(昨收差价)  还没有成型，不做操作 ，也没有损益
+            result.append(
+                [ row[0], md_that_day[1], md_that_day[2], 0, None, None  ]
             )
+        else:
+            y_diff    = indices[i - 1][1]  # 昨日ln差价
+            y_diff_ma = indices[i - 1][2]  # 昨日ln差价的MA 
+            y_policy  = result[i-1][3]     # 昨日本策略的收盘价
+
+            if y_diff < y_diff_ma:
+                # 脚1弱，我们应该持有脚2
+                sec2_delta = md_that_day[2] - logged_his[i-1][2] #当日脚2的增量
+                
+                if 2 == we_hold:
+                    #不用动
+                    result.append(
+                        [ row[0], md_that_day[1], md_that_day[2] 
+                            ,  y_policy + sec2_delta 
+                            , None, None  ]
+                    )
+                elif 1 == we_hold:
+                    # 我们要从脚1换仓到脚2
+                    result.append(
+                        [  
+                            row[0], md_that_day[1], md_that_day[2] 
+                            ,  y_policy + sec2_delta + TRANS_COST + TRANS_COST 
+                            , "2" , " %s -> %s" % ( sec1, sec2)
+                        ]
+                    )
+                    trans_num = trans_num + 1
+                    we_hold = 2
+                else:
+                    # 建仓脚2
+                    result.append(
+                        [  
+                            row[0], md_that_day[1], md_that_day[2] 
+                            ,  y_policy + sec2_delta + TRANS_COST 
+                            , "2" , " 0 -> %s" %  sec2
+                        ]
+                    )
+                    trans_num = trans_num + 1
+                    we_hold = 2
+
+            elif y_diff > y_diff_ma:
+                # 脚1强，我们应该持有脚1
+                sec1_delta = md_that_day[1] - logged_his[i-1][1] #当日脚1的增量
+                
+                if 1 == we_hold:
+                    #不用动
+                    result.append(
+                        [ row[0], md_that_day[1], md_that_day[2] 
+                            ,  y_policy + sec1_delta 
+                            , None, None  ]
+                    )
+                elif 2 == we_hold:
+                    # 我们要从脚2换仓到脚1
+                    result.append(
+                        [  
+                            row[0], md_that_day[1], md_that_day[2] 
+                            ,  y_policy + sec1_delta + TRANS_COST + TRANS_COST 
+                            , "1" , " %s -> %s" % ( sec2, sec1)
+                        ]
+                    )
+                    trans_num = trans_num + 1
+                    we_hold = 1
+                else:
+                    # 建仓脚1
+                    result.append(
+                        [  
+                            row[0], md_that_day[1], md_that_day[2] 
+                            ,  y_policy + sec1_delta + TRANS_COST 
+                            , "1" , " 0 -> %s" %  sec1
+                        ]
+                    )
+                    trans_num = trans_num + 1
+                    we_hold = 1
+            else:
+                # 不动
+                if 1 == we_hold:
+                    delta = md_that_day[1] - logged_his[i-1][1] #当日脚1的增量
+                elif 2 == we_hold:
+                    delta = md_that_day[2] - logged_his[i-1][2] #当日脚2的增量
+                else:
+                    delta = 0 
+                
+                result.append(
+                    [ row[0], md_that_day[1], md_that_day[2] 
+                        ,  y_policy + delta 
+                        , None, None  ]
+                )
+
+    ##header = [
+    ##    '日期'
+    ##    , "%s-%s.ln" % (str(sec1.code), str(sec2.code) )
+    ##    , "MA%d" % MA_Size 
+    ##    ]
+
+    ##plotter.simple_generate_line_chart( 
+    ##         header 
+    ##        , indices
+    ##        )
+    
+    return (result ,  trans_num )
 
 
 def bt_faster_horse( dbcur, sec1, sec2):
@@ -253,16 +361,20 @@ def bt_faster_horse( dbcur, sec1, sec2):
 
     #generate_his_csv( code1, code2, logged_his)
     #generate_his_htm_chart( sec1, sec2, logged_his[:100])
-    bt = sim_faster_horse(sec1,sec2, logged_his, 5)
-    bt = sim_faster_horse(sec1,sec2, logged_his, 10)
-    bt = sim_faster_horse(sec1,sec2, logged_his, 20)
+    #bt = sim_faster_horse(sec1,sec2, logged_his, 5)
+    #bt = sim_faster_horse(sec1,sec2, logged_his, 10)
+    bt,trans_num  = sim_faster_horse(sec1,sec2, logged_his, 20)
 
-    plotter.generate_htm_chart_3lines_w_annotation( sec1, sec2, bt )
+
+    plotter.generate_htm_chart_for_faster_horse( sec1, sec2, bt )
     
-    #net_value  =  math.exp( bt[len(bt)][3] ) 
-    net_value  =  0
+    last_entry = bt[len(bt) - 1 ]
+    net_value  =  math.exp( last_entry [3] ) 
+    leg1  =  math.exp( last_entry [1] )   
+    leg2  =  math.exp( last_entry [2] )   
+    #net_value  =  0
 
-    return (net_value , row_num )
+    return (net_value , row_num , trans_num, leg1, leg2 )
 
   
 def cmp_correl( correl1, correl2):
