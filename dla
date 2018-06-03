@@ -28,7 +28,8 @@ def print_usage( argv0 = MY_NAME ):
     print "  %s correl      <代码1> <代码2> 考察指定两个代码的相关性 " % argv0
     print "  %s correl_all  [<代码列表文件>] 考察所有代码之间的相关性 " % argv0
     print "  %s show_correl 列出记录与DB的相关性关系 " % argv0
-    print "  %s bt_faster_horse   <代码1> <代码2> 回测‘换快马’策略" % argv0
+    print "  %s bt_faster_horse   <代码1> <代码2> [短周期=1] [中周期=20] 回测‘换快马’策略" % argv0
+    print "  %s probe_faster_horse   <代码1> <代码2> 所有‘换快马’策略的所有参数组合" % argv0
     print "  %s import      <日线文件>   导入单个日线文件" % argv0
     print "  %s importdir   <日线目录>   导入指定目录下所有日线文件(.txt) " % argv0
 
@@ -251,9 +252,25 @@ def handle_bt_faster_horse( argv, argv0 = MY_NAME ):
     
     i = len(argv)
     if ( i < 2 ):
-        print "  %s bt_faster_horse   <代码1> <代码2> 对指定两个代码进行‘换马’策略的回测 " % argv0
+        print "  %s bt_faster_horse   <代码1> <代码2> [短周期=1] [中周期=20] 对指定两个代码进行‘换马’策略的回测 " % argv0
         print "\n 未指定两个代码\n"
         return 1
+
+    MA_Size1 = 1
+    MA_Size2 = 20
+
+    if 4 == len(argv):
+        try:
+            MA_Size1 =  int ( argv[2])
+            MA_Size2 =  int ( argv[3])
+
+            if MA_Size1 <= 0 or MA_Size2 <=0 or MA_Size1 >= MA_Size2:
+                print "短期MA天数 必须小于 中期MA天数， 且都必须是正整数。"
+                return 2
+        except ValueError:
+            print "短期MA天数/中期MA天数， 都必须是正整数。"
+            return 3
+
 
     try:
         # connect to DB 
@@ -276,12 +293,17 @@ def handle_bt_faster_horse( argv, argv0 = MY_NAME ):
         sec1 = inventory_ranges[code1]
         sec2 = inventory_ranges[code2]
 
-        net_value, day_num, t_num, leg1 ,leg2 = analyzer.bt_faster_horse(dbcur, sec1, sec2)
-        print "%s %s ‘换快马’, %d 交易日，净值 %f, 换(建)仓 %d 次, 同期两脚净值 %f,%f"  % (
-                    str(sec1), str(sec2)
-                    , day_num, net_value, t_num
-                    , leg1, leg2
-                    )
+        for MA_Size1 in range(1, 11):
+            for MA_Size2 in range( 2* MA_Size1, 41 ):
+
+                net_value, day_num, t_num, leg1 ,leg2 = analyzer.bt_faster_horse(
+                        dbcur, sec1, sec2, MA_Size1, MA_Size2 
+                        )
+                print "%s %s ‘换快马(%d-%d)’, %d 交易日，净值 %f, 换(建)仓 %d 次, 同期两脚净值 %f,%f"  % (
+                            str(sec1), str(sec2), MA_Size1 ,MA_Size2 
+                            , day_num, net_value, t_num
+                            , leg1, leg2
+                            )
         
         # DB clean up
         conn.commit()
@@ -383,7 +405,9 @@ def main():
     elif ('gen_alpha' == sub_command ):
         return handle_gen_alpha ( sys.argv[2:] ) 
     elif ('bt_faster_horse' == sub_command ):
-        return handle_bt_faster_horse ( sys.argv[2:] )   
+        return handle_bt_faster_horse ( sys.argv[2:] )    
+    elif ('probe_faster_horse' == sub_command ):
+        return handle_probe_faster_horse ( sys.argv[2:] ) 
     elif ('help' == sub_command ):
         print_usage()
         return 1

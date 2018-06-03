@@ -127,40 +127,48 @@ def correlation( dbcur, sec1, sec2):
 
 
 # 2D 数组 :
-#  日期, ln差价,  MA of  ln差价
-def generate_indices_for_faster_horse( logged_his, MA_Size = 20):
+#  日期, ln差价, MA1 of ln 差价,  MA2 of  ln差价 
+def generate_indices_for_faster_horse( logged_his,MA_Size1 = 1,  MA_Size2 = 20):
     indices = []
-    MA_Sum = 0
+    MA_Sum1 = 0
+    MA_Sum2 = 0
+
     for index, row in enumerate( logged_his  ):
 
         the_diff =  (row[1] -row[2])
 
-        if index < MA_Size : 
-            
+        if index < MA_Size1 : 
             #累加的窗口
-            MA_Sum = MA_Sum + the_diff
+            MA_Sum1 = MA_Sum1 + the_diff
 
             #部分MA
-            MA = MA_Sum / (index + 1)
-
-            indices.append( 
-                [
-                    row[0]
-                    , the_diff 
-                    , MA
-                ] )
+            MA1 = MA_Sum1 / (index + 1)
         else:
             # 以后的MA，窗口向后滑动一格
-            MA_Sum = MA_Sum - indices[index - MA_Size][1] +  the_diff
+            MA_Sum1 = MA_Sum1 - indices[index - MA_Size1][1] +  the_diff
             
             #计算MA
-            MA = MA_Sum / MA_Size
+            MA1 = MA_Sum1 / MA_Size1
+ 
+        if index < MA_Size2 : 
+            #累加的窗口
+            MA_Sum2 = MA_Sum2 + the_diff
+
+            #部分MA
+            MA2 = MA_Sum2 / (index + 1)
+        else:
+            # 以后的MA，窗口向后滑动一格
+            MA_Sum2 = MA_Sum2 - indices[index - MA_Size2][1] +  the_diff
             
-            indices.append( 
+            #计算MA
+            MA2 = MA_Sum2 / MA_Size2
+           
+        indices.append( 
                 [
                     row[0]
                     , the_diff
-                    , MA
+                    , MA1
+                    , MA2
                 ] )
 
     return indices 
@@ -179,7 +187,7 @@ TRANS_COST = math.log( 0.9997)  # −0.000300045
 #         日期   脚1对数化收盘价     脚2对数化收盘价   策略对数化收盘价  换仓提示  换仓详细  
 #         ...
 #
-def sim_faster_horse( sec1, sec2, logged_his, MA_Size = 20):
+def sim_faster_horse( sec1, sec2, logged_his, MA_Size1 = 1 , MA_Size2 = 20):
     #我在excel里根据50和500的昨收，算出ln(50昨收)-ln(500昨收)，称为ln差价，ln差价求20日移动平均。
     #如果ln差价小于20日平均，持有500，反之，持有50。
     #持有50的话，当日收益为ln(50收盘)-ln(50昨收)，否则，为500的收益（当然，换股日的话，收益要减去0.0002。因为假设有万分之二的etf交易手续费）。
@@ -187,27 +195,44 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size = 20):
 
 
     # 2D 数组 :
-    #  日期, ln差价,  MA of  ln差价
-    indices = generate_indices_for_faster_horse( logged_his, MA_Size)   
+    #  日期, ln差价, MA1 of ln 差价,  MA2 of  ln差价 
+    indices = generate_indices_for_faster_horse( logged_his, MA_Size1, MA_Size2 )   
 
     result = []
-    trans_num = 0
+    trans_num = 0 
+    
+    ##header = [
+    ##    '日期'
+    ##    , "%s-%s.ln" % (str(sec1.code), str(sec2.code) )
+    ##    , "MA%d" % MA_Size1 
+    ##    , "MA%d" % MA_Size2 
+    ##    ]
+
+    ##plotter.simple_generate_line_chart( 
+    ##         header 
+    ##        , indices
+    ##        )
+    ##
+    ##return (result ,  trans_num )
+
+
     we_hold = 0 # 0 表示'空仓'， 1 表示'脚1'， 2 表示'脚2'
     for i, row in enumerate(indices):
         
         md_that_day = logged_his[i]  #当日行情
 
-        if i < MA_Size : 
+        if i < MA_Size2 : 
             # MA(昨收差价)  还没有成型，不做操作 ，也没有损益
             result.append(
                 [ row[0], md_that_day[1], md_that_day[2], 0, None, None  ]
             )
         else:
             y_diff    = indices[i - 1][1]  # 昨日ln差价
-            y_diff_ma = indices[i - 1][2]  # 昨日ln差价的MA 
+            y_diff_ma_short   = indices[i - 1][2]  # 昨日ln差价的短期MA 
+            y_diff_ma_middle  = indices[i - 1][3]  # 昨日ln差价的中期MA 
             y_policy  = result[i-1][3]     # 昨日本策略的收盘价
 
-            if y_diff < y_diff_ma:
+            if y_diff_ma_short < y_diff_ma_middle:
                 # 脚1弱，我们应该持有脚2
                 sec2_delta = md_that_day[2] - logged_his[i-1][2] #当日脚2的增量
                 
@@ -241,7 +266,7 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size = 20):
                     trans_num = trans_num + 1
                     we_hold = 2
 
-            elif y_diff > y_diff_ma:
+            elif y_diff_ma_short > y_diff_ma_middle:
                 # 脚1强，我们应该持有脚1
                 sec1_delta = md_that_day[1] - logged_his[i-1][1] #当日脚1的增量
                 
@@ -289,21 +314,10 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size = 20):
                         , None, None  ]
                 )
 
-    ##header = [
-    ##    '日期'
-    ##    , "%s-%s.ln" % (str(sec1.code), str(sec2.code) )
-    ##    , "MA%d" % MA_Size 
-    ##    ]
-
-    ##plotter.simple_generate_line_chart( 
-    ##         header 
-    ##        , indices
-    ##        )
-    
     return (result ,  trans_num )
 
 
-def bt_faster_horse( dbcur, sec1, sec2):
+def bt_faster_horse( dbcur, sec1, sec2 , MA_Size1,MA_Size2 ):
 
     dbcur.execute ('''select a.t_day, a.close, a.delta_r, b.close, b.delta_r 
         from MdHis a , MdHis b
@@ -359,13 +373,9 @@ def bt_faster_horse( dbcur, sec1, sec2):
         row = dbcur.fetchone()
 
 
-    #generate_his_csv( code1, code2, logged_his)
-    #generate_his_htm_chart( sec1, sec2, logged_his[:100])
-    #bt = sim_faster_horse(sec1,sec2, logged_his, 5)
-    #bt = sim_faster_horse(sec1,sec2, logged_his, 10)
-    bt,trans_num  = sim_faster_horse(sec1,sec2, logged_his, 20)
-
-
+    bt,trans_num  = sim_faster_horse(sec1,sec2, logged_his, MA_Size1,  MA_Size2)
+    #return (0, row_num , trans_num, 0, 0 )
+    
     plotter.generate_htm_chart_for_faster_horse( sec1, sec2, bt )
     
     last_entry = bt[len(bt) - 1 ]
