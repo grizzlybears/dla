@@ -247,6 +247,72 @@ def handle_correl( argv, argv0 = MY_NAME ):
 
     return 0
 
+def handle_probe_faster_horse( argv, argv0 = MY_NAME ): 
+    
+    i = len(argv)
+    if ( i < 2 ):
+        print "  %s bt_faster_horse   <代码1> <代码2>  对指定两个代码进行‘换马’策略的回测 " % argv0
+        print "\n 未指定两个代码\n"
+        return 1
+
+    MA_Size1 = 1
+    MA_Size2 = 20
+    
+    try:
+        # connect to DB 
+        conn = db_operator.get_db_conn()
+        dbcur = conn.cursor()
+        inventory_ranges = db_operator.get_inventory(dbcur)
+
+        # real stuff
+        code1 = argv[0]
+        code2 = argv[1]
+
+        if code1 not in inventory_ranges:
+            print "%s not exists." % code1
+            return 1 
+        
+        if code2 not in inventory_ranges:
+            print "%s not exists." % code2
+            return 1
+
+        sec1 = inventory_ranges[code1]
+        sec2 = inventory_ranges[code2]
+
+        for MA_Size1 in range(1, 11):
+            for MA_Size2 in range( 2* MA_Size1, 41 ):
+
+                net_value, day_num, t_num, leg1 ,leg2 = analyzer.bt_faster_horse(
+                        dbcur, sec1, sec2, MA_Size1, MA_Size2 
+                        )
+                print "%s %s ‘换快马(%d-%d)’, %d 交易日，净值 %f, 换(建)仓 %d 次, 同期两脚净值 %f,%f"  % (
+                            str(sec1), str(sec2), MA_Size1 ,MA_Size2 
+                            , day_num, net_value, t_num
+                            , leg1, leg2
+                            )
+        
+        # DB clean up
+        conn.commit()
+
+    except  Exception as e:
+        #pp = pprint.PrettyPrinter(indent=4)
+        #pp.pprint(e) 
+        
+        (t, v, bt) = sys.exc_info()
+        traceback.print_exception(t, v, bt)
+
+        print
+        print e
+
+        return 1
+    finally:
+        dbcur.close()
+        conn.close()
+
+
+    return 0
+
+
 # 处理 'bt_faster_horse' 子命令 , ‘换马’策略的回测
 def handle_bt_faster_horse( argv, argv0 = MY_NAME ): 
     
@@ -293,17 +359,14 @@ def handle_bt_faster_horse( argv, argv0 = MY_NAME ):
         sec1 = inventory_ranges[code1]
         sec2 = inventory_ranges[code2]
 
-        for MA_Size1 in range(1, 11):
-            for MA_Size2 in range( 2* MA_Size1, 41 ):
-
-                net_value, day_num, t_num, leg1 ,leg2 = analyzer.bt_faster_horse(
-                        dbcur, sec1, sec2, MA_Size1, MA_Size2 
-                        )
-                print "%s %s ‘换快马(%d-%d)’, %d 交易日，净值 %f, 换(建)仓 %d 次, 同期两脚净值 %f,%f"  % (
-                            str(sec1), str(sec2), MA_Size1 ,MA_Size2 
-                            , day_num, net_value, t_num
-                            , leg1, leg2
-                            )
+        net_value, day_num, t_num, leg1 ,leg2 = analyzer.bt_faster_horse(
+                 dbcur, sec1, sec2, MA_Size1, MA_Size2 
+                 )
+        print "%s %s ‘换快马(%d-%d)’, %d 交易日，净值 %f, 换(建)仓 %d 次, 同期两脚净值 %f,%f"  % (
+                     str(sec1), str(sec2), MA_Size1 ,MA_Size2 
+                     , day_num, net_value, t_num
+                     , leg1, leg2
+                     )
         
         # DB clean up
         conn.commit()

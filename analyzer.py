@@ -218,6 +218,8 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size1 = 1 , MA_Size2 = 20):
 
     we_hold = 0 # 0 表示'空仓'， 1 表示'脚1'， 2 表示'脚2'
     for i, row in enumerate(indices):
+
+        #print  "\t%s\n"  %  str(row).decode('string_escape')
         
         md_that_day = logged_his[i]  #当日行情
 
