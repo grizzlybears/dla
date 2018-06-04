@@ -187,7 +187,7 @@ TRANS_COST = math.log( 0.9997)  # −0.000300045
 #         日期   脚1对数化收盘价     脚2对数化收盘价   策略对数化收盘价  换仓提示  换仓详细  
 #         ...
 #
-def sim_faster_horse( sec1, sec2, logged_his, MA_Size1 = 1 , MA_Size2 = 20):
+def sim_faster_horse( sec1, sec2, logged_his, MA_Size1 = 1 , MA_Size2 = 20, start_day = "", end_day = ""):
     #我在excel里根据50和500的昨收，算出ln(50昨收)-ln(500昨收)，称为ln差价，ln差价求20日移动平均。
     #如果ln差价小于20日平均，持有500，反之，持有50。
     #持有50的话，当日收益为ln(50收盘)-ln(50昨收)，否则，为500的收益（当然，换股日的话，收益要减去0.0002。因为假设有万分之二的etf交易手续费）。
@@ -196,7 +196,7 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size1 = 1 , MA_Size2 = 20):
 
     # 2D 数组 :
     #  日期, ln差价, MA1 of ln 差价,  MA2 of  ln差价 
-    indices = generate_indices_for_faster_horse( logged_his, MA_Size1, MA_Size2 )   
+    indices = generate_indices_for_faster_horse( logged_his, MA_Size1, MA_Size2 , )   
 
     result = []
     trans_num = 0 
@@ -217,7 +217,16 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size1 = 1 , MA_Size2 = 20):
 
 
     we_hold = 0 # 0 表示'空仓'， 1 表示'脚1'， 2 表示'脚2'
+
+
     for i, row in enumerate(indices):
+
+        if "" != start_day and row[0] < start_day:
+            # 略过
+            continue
+
+        if "" != end_day and row[0] >= end_day:
+            break
 
         #print  "\t%s\n"  %  str(row).decode('string_escape')
         
@@ -232,7 +241,12 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size1 = 1 , MA_Size2 = 20):
             y_diff    = indices[i - 1][1]  # 昨日ln差价
             y_diff_ma_short   = indices[i - 1][2]  # 昨日ln差价的短期MA 
             y_diff_ma_middle  = indices[i - 1][3]  # 昨日ln差价的中期MA 
-            y_policy  = result[i-1][3]     # 昨日本策略的收盘价
+            
+            # 昨日本策略的收盘价
+            if len(result) > 0:
+                y_policy  = result[ len(result) - 1 ][3]    
+            else:
+                y_policy = 0
 
             if y_diff_ma_short < y_diff_ma_middle:
                 # 脚1弱，我们应该持有脚2
@@ -251,7 +265,7 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size1 = 1 , MA_Size2 = 20):
                         [  
                             row[0], md_that_day[1], md_that_day[2] 
                             ,  y_policy + sec2_delta + TRANS_COST + TRANS_COST 
-                            , "2" , " %s -> %s" % ( sec1, sec2)
+                            , "2" , "%s %s -> %s" % ( row[0], sec1, sec2)
                         ]
                     )
                     trans_num = trans_num + 1
@@ -262,7 +276,7 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size1 = 1 , MA_Size2 = 20):
                         [  
                             row[0], md_that_day[1], md_that_day[2] 
                             ,  y_policy + sec2_delta + TRANS_COST 
-                            , "2" , " 0 -> %s" %  sec2
+                            , "2" , "%s 0 -> %s" %  (row[0] , sec2)
                         ]
                     )
                     trans_num = trans_num + 1
@@ -285,7 +299,7 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size1 = 1 , MA_Size2 = 20):
                         [  
                             row[0], md_that_day[1], md_that_day[2] 
                             ,  y_policy + sec1_delta + TRANS_COST + TRANS_COST 
-                            , "1" , " %s -> %s" % ( sec2, sec1)
+                            , "1" , " %s %s -> %s" % (row[0], sec2, sec1)
                         ]
                     )
                     trans_num = trans_num + 1
@@ -296,7 +310,7 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size1 = 1 , MA_Size2 = 20):
                         [  
                             row[0], md_that_day[1], md_that_day[2] 
                             ,  y_policy + sec1_delta + TRANS_COST 
-                            , "1" , " 0 -> %s" %  sec1
+                            , "1" , " %s 0 -> %s" %  (row[0],sec1)
                         ]
                     )
                     trans_num = trans_num + 1
@@ -319,7 +333,7 @@ def sim_faster_horse( sec1, sec2, logged_his, MA_Size1 = 1 , MA_Size2 = 20):
     return (result ,  trans_num )
 
 
-def bt_faster_horse( dbcur, sec1, sec2 , MA_Size1,MA_Size2 ):
+def bt_faster_horse( dbcur, sec1, sec2 , MA_Size1,MA_Size2 , start_day , end_day ):
 
     dbcur.execute ('''select a.t_day, a.close, a.delta_r, b.close, b.delta_r 
         from MdHis a , MdHis b
@@ -375,18 +389,26 @@ def bt_faster_horse( dbcur, sec1, sec2 , MA_Size1,MA_Size2 ):
         row = dbcur.fetchone()
 
 
-    bt,trans_num  = sim_faster_horse(sec1,sec2, logged_his, MA_Size1,  MA_Size2)
+    bt,trans_num  = sim_faster_horse(
+            sec1,sec2, logged_his
+            , MA_Size1,  MA_Size2
+            , start_day , end_day)
     #return (0, row_num , trans_num, 0, 0 )
+ 
+    suffix = ""
+    if "" != start_day: 
+        suffix = ".%s_%s" % (start_day, end_day)
+
+    plotter.generate_htm_chart_for_faster_horse( sec1, sec2, bt , suffix)
     
-    plotter.generate_htm_chart_for_faster_horse( sec1, sec2, bt )
-    
+    first_entry = bt[0]
     last_entry = bt[len(bt) - 1 ]
     net_value  =  math.exp( last_entry [3] ) 
-    leg1  =  math.exp( last_entry [1] )   
-    leg2  =  math.exp( last_entry [2] )   
+    leg1  =  math.exp( last_entry [1] - first_entry[1] )   
+    leg2  =  math.exp( last_entry [2] - first_entry[2] )   
     #net_value  =  0
 
-    return (net_value , row_num , trans_num, leg1, leg2 )
+    return (net_value , len(bt) , trans_num, leg1, leg2 )
 
   
 def cmp_correl( correl1, correl2):

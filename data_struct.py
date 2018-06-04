@@ -127,7 +127,7 @@ class MdRecord:
 
         t = row['代码'] 
         
-        ma =  re.match( '^.+(\d{6})$' , t )
+        ma =  re.matca( '^.+(\d{6})$' , t )
         if ma:
             #是 <交易所><6位代码> 的格式
             self.code = ma.group(1)
@@ -258,4 +258,9 @@ class SecurityInfo:
 
     def __str__(self):
         return "%s(%s)" % (self.code, self.name)
+
+
+def is_yyyy_mm_dd (s):
+
+    return  re.match( '^\d{4}-\d{2}-\d{2}$' , s )
 

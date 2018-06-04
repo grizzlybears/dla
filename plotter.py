@@ -230,8 +230,8 @@ def make_base_name(header):
 # 'data' : 2-D array 
 #       横坐标   line1  line2  line3 line3上的标注  line3上的标注详细   
 #
-def generate_htm_chart_for_faster_horse( sec1, sec2, data ):
-    basename = "%s_%s_faster_horse" % ( sec1.code, sec2.code ) 
+def generate_htm_chart_for_faster_horse( sec1, sec2, data , suffix):
+    basename = "%s_%s_faster_horse%s" % ( sec1.code, sec2.code, suffix ) 
 
     header = [
         '日期'
@@ -247,7 +247,7 @@ def generate_htm_chart_for_faster_horse( sec1, sec2, data ):
     filename = "%s/%s.html" % (data_struct.WORKING_DIR, basename)
 
     with io.open( filename, "wb" ) as the_file:
-        write_chart_html_header( the_file, jsfilename,  "换快马 %s %s" % (sec1, sec2) ) 
+        write_chart_html_header( the_file, jsfilename,  "换快马 %s %s %s" % (sec1, sec2, suffix) ) 
         draw_chart_w_anno_full( the_file,  basename , header )
     
         if len(data) > 1000:

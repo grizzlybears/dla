@@ -325,7 +325,10 @@ def handle_bt_faster_horse( argv, argv0 = MY_NAME ):
     MA_Size1 = 1
     MA_Size2 = 20
 
-    if 4 == len(argv):
+    start_day = ""
+    end_day   = ""
+
+    if len(argv) >= 4 :
         try:
             MA_Size1 =  int ( argv[2])
             MA_Size2 =  int ( argv[3])
@@ -337,7 +340,18 @@ def handle_bt_faster_horse( argv, argv0 = MY_NAME ):
             print "短期MA天数/中期MA天数， 都必须是正整数。"
             return 3
 
+    if  len(argv) >= 5:
+        start_day =argv[4]
+        if  not data_struct.is_yyyy_mm_dd( start_day ):
+            print "开始日期必须是 yyyy-mm-dd"
+            return 2
 
+    if len(argv) >= 6:
+        end_day =argv[5]
+        if  not data_struct.is_yyyy_mm_dd( end_day ):
+            print "结束日期必须是 yyyy-mm-dd"
+            return 2
+    
     try:
         # connect to DB 
         conn = db_operator.get_db_conn()
@@ -360,12 +374,18 @@ def handle_bt_faster_horse( argv, argv0 = MY_NAME ):
         sec2 = inventory_ranges[code2]
 
         net_value, day_num, t_num, leg1 ,leg2 = analyzer.bt_faster_horse(
-                 dbcur, sec1, sec2, MA_Size1, MA_Size2 
+                 dbcur, sec1, sec2, MA_Size1, MA_Size2 , start_day, end_day 
                  )
-        print "%s %s ‘换快马(%d-%d)’, %d 交易日，净值 %f, 换(建)仓 %d 次, 同期两脚净值 %f,%f"  % (
-                     str(sec1), str(sec2), MA_Size1 ,MA_Size2 
+
+        scope = ""
+        if "" != start_day:
+            scope = " %s~%s" % (start_day, end_day)
+
+        print "%s %s ‘换快马(%d-%d)%s’, %d T，V %f, 交易 %d 次, 同期两脚V %f/%f, 业绩%f "  % (
+                     str(sec1), str(sec2), MA_Size1 ,MA_Size2 ,scope 
                      , day_num, net_value, t_num
                      , leg1, leg2
+                     , net_value - ( leg1 + leg2 ) / 2
                      )
         
         # DB clean up
