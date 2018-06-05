@@ -333,7 +333,7 @@ def handle_bt_faster_horse( argv, argv0 = MY_NAME ):
             MA_Size1 =  int ( argv[2])
             MA_Size2 =  int ( argv[3])
 
-            if MA_Size1 <= 0 or MA_Size2 <=0 or MA_Size1 >= MA_Size2:
+            if MA_Size1 < 0 or MA_Size2 <=0 or MA_Size1 >= MA_Size2:
                 print "短期MA天数 必须小于 中期MA天数， 且都必须是正整数。"
                 return 2
         except ValueError:

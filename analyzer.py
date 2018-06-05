@@ -125,10 +125,36 @@ def correlation( dbcur, sec1, sec2):
 
     return ( r_close, r_delta, row_num )
 
+# 2D 数组 :
+#  日期, ln差价, leg1涨幅, leg2涨幅
+def plain_delta_for_faster_horse( logged_his,MA_Size1 = 1,  MA_Size2 = 20):
+
+    indices = []
+
+    for i, row in enumerate( logged_his  ):
+
+        the_diff =  (row[1] -row[2])
+        delta1 = row[5]
+        delta2 = row[6]
+
+        indices.append( 
+                [
+                    row[0]
+                    , the_diff
+                    , delta1 
+                    , delta2
+                ] )
+
+    return indices 
+
 
 # 2D 数组 :
 #  日期, ln差价, MA1 of ln 差价,  MA2 of  ln差价 
 def generate_indices_for_faster_horse( logged_his,MA_Size1 = 1,  MA_Size2 = 20):
+
+    if 0 == MA_Size1:
+        return plain_delta_for_faster_horse(logged_his)
+
     indices = []
     MA_Sum1 = 0
     MA_Sum2 = 0
@@ -368,9 +394,13 @@ def bt_faster_horse( dbcur, sec1, sec2 , MA_Size1,MA_Size2 , start_day , end_day
         close1 = float(row[1] )
         close2 = float(row[3] )
 
+        delta1 = float(row[2])
+        delta2 = float(row[4])
+
+
         if 1 == row_num:
             # (相对于期初)对数化
-            logged_his.append( [row[0], 0, 0,  close1, close2 ] )
+            logged_his.append( [row[0], 0, 0,  close1, close2, delta1, delta2 ] )
             first_c1 = math.log(close1)
             first_c2 = math.log(close2)
 
@@ -384,6 +414,8 @@ def bt_faster_horse( dbcur, sec1, sec2 , MA_Size1,MA_Size2 , start_day , end_day
                 , logged2
                 , close1
                 , close2
+                , delta1 
+                , delta2 
                  ] )
 
         row = dbcur.fetchone()
