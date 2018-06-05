@@ -247,6 +247,54 @@ def handle_correl( argv, argv0 = MY_NAME ):
 
     return 0
 
+# 处理 'faster_horse_all' 子命令
+def handle_faster_horse_all ( argv, argv0 = MY_NAME ): 
+    try:
+        # connect to DB 
+        conn = db_operator.get_db_conn()
+        dbcur = conn.cursor()
+
+
+        inventory_ranges = {} 
+ 
+        i = len(argv)
+        if (  i >= 1 ):
+            inventory_ranges = db_operator.get_inventory(dbcur)
+            # 只关心列在文件里的那些代码
+            codes_from_file = his_loader.codes_from_file( argv[0] )
+
+            for k in inventory_ranges.keys():
+                if k not in codes_from_file:
+                    del inventory_ranges[k]
+
+            analyzer.print_inventory( inventory_ranges)
+        else:
+            print "  %s faster_horse_all  <代码列表> " % argv0
+            return 1
+
+        
+        # real stuff 
+        analyzer.faster_horse_all( inventory_ranges,  dbcur)
+        
+               
+        # DB clean up
+        conn.commit()
+
+    except  Exception as e:
+        (t, v, bt) = sys.exc_info()
+        traceback.print_exception(t, v, bt)
+        print
+        print e
+
+        return 1
+    finally:
+        dbcur.close()
+        conn.close()
+
+
+    return 0
+
+
 def handle_probe_faster_horse( argv, argv0 = MY_NAME ): 
     
     i = len(argv)
@@ -491,6 +539,8 @@ def main():
         return handle_bt_faster_horse ( sys.argv[2:] )    
     elif ('probe_faster_horse' == sub_command ):
         return handle_probe_faster_horse ( sys.argv[2:] ) 
+    elif ('faster_horse_all' == sub_command ):
+        return handle_faster_horse_all ( sys.argv[2:] ) 
     elif ('help' == sub_command ):
         print_usage()
         return 1

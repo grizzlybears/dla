@@ -526,3 +526,71 @@ def correlation_all(inventory_ranges, dbcur):
 
     html_file.close()
 
+
+# 返回2D数组
+# (空)    参数1   参数2    参数3   参数4 ...
+# 时段1   结果    结果     结果    结果  ...
+# 时段2   结果    结果     结果    结果  ...
+# 时段3   结果    结果     结果    结果  ...
+# ...
+def faster_horse_set(dbcur, sec1 , sec2):
+    paras = [
+            (0,1)
+            ,(1,2)
+            ,(1,22)
+            ,(3,22)
+            ]
+
+    scopes = [
+            ""
+            , "2008-01-01"
+            , "2013-01-01"
+            ]
+
+    for start_day in scopes:
+        for short, middle in paras:
+            
+            net_value, day_num, t_num, leg1 ,leg2 = bt_faster_horse(
+                 dbcur, sec1, sec2, short, middle, start_day, ""
+                 )
+            
+            print "%s %s, %s ~ , %d-%d, T=%d, V=%f, P=%f" % (
+                    sec1,sec2
+                    , start_day
+                    , short, middle  
+                    , t_num , net_value , net_value - (leg1 + leg2) / 2 
+                    )
+
+
+
+    return []
+
+
+def faster_horse_all(inventory_ranges, dbcur):
+
+    fha = {}
+
+    count = 0
+    for k1,v1  in inventory_ranges.iteritems():
+        
+        s = {}
+
+        for k2,v2  in inventory_ranges.iteritems():
+            if k1 >= k2:
+                continue;
+            
+            # print "%s %s" % (k1,k2)
+            r = faster_horse_set(dbcur, v1 , v2)
+            
+            s[k2] =  r
+
+            count = count +1
+            #if count >= 5:
+            #    break
+        
+        fha[k1] = s
+        #if count >= 200:
+        #    break
+
+
+
