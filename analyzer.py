@@ -593,4 +593,105 @@ def faster_horse_all(inventory_ranges, dbcur):
         #    break
 
 
+def fetch_md_his_for_faster_horse2( dbcur, secs):
+    select_clause = ""
+    from_clause   = ""
+    where_filter  = ""
+    join_clause   = ""
+    more_filter   = ""
+
+    for i,sec in enumerate(secs):
+        if 0 == i:
+            select_clause = "select " + "t0.t_day" 
+            from_clause   = "from MdHis t0"
+            where_filter  = "where \n\tt0.code = '%s' " % sec.code
+        else:
+            from_clause   = from_clause  + ", MdHis t%d" % i
+            where_filter  = where_filter + " and t%d.code = '%s' " % (i, sec.code)
+            join_clause   = join_clause + " and t0.t_day = t%d.t_day" % i
+
+        select_clause = select_clause + ", t%d.close, t%d.delta_r" % (i,i)
+        more_filter   = more_filter + " and t%d.delta_r is not null" % i
+
+    sql = "%s\n%s\n%s\n%s\n%s\n" % (select_clause, from_clause, where_filter, join_clause ,more_filter )
+
+    print sql
+    return []
+
+
+def faster_horse2( dbcur, secs, MA_Size1,MA_Size2 , start_day , end_day ):
+    
+    md_his_data = fetch_md_his_for_faster_horse2( dbcur, secs)
+
+    return 
+   
+    v_c1 = []
+    v_c2 = []
+
+    logged_his= []
+
+    #fieldnames = ['T_Day', str(sec1), str(sec2) , '' , '' ]
+    #logged_his.append( fieldnames );
+
+    row_num = 0
+
+    first_c1 = 0
+    first_c2 = 0
+
+    row = dbcur.fetchone()
+    while row is not None:
+
+        row_num = row_num + 1
+
+        close1 = float(row[1] )
+        close2 = float(row[3] )
+
+        delta1 = float(row[2])
+        delta2 = float(row[4])
+
+
+        if 1 == row_num:
+            # (相对于期初)对数化
+            logged_his.append( [row[0], 0, 0,  close1, close2, delta1, delta2 ] )
+            first_c1 = math.log(close1)
+            first_c2 = math.log(close2)
+
+        else:
+            # (相对于期初)对数化
+            logged1 = math.log(close1) - first_c1  
+            logged2 = math.log(close2) - first_c2 
+            logged_his.append( [
+                row[0]
+                , logged1 
+                , logged2
+                , close1
+                , close2
+                , delta1 
+                , delta2 
+                 ] )
+
+        row = dbcur.fetchone()
+
+
+    bt,trans_num  = sim_faster_horse(
+            sec1,sec2, logged_his
+            , MA_Size1,  MA_Size2
+            , start_day , end_day)
+    #return (0, row_num , trans_num, 0, 0 )
+ 
+    suffix = ""
+    if "" != start_day: 
+        suffix = ".%s_%s" % (start_day, end_day)
+
+    plotter.generate_htm_chart_for_faster_horse( sec1, sec2, bt , suffix)
+    
+    first_entry = bt[0]
+    last_entry = bt[len(bt) - 1 ]
+    net_value  =  math.exp( last_entry [3] ) 
+    leg1  =  math.exp( last_entry [1] - first_entry[1] )   
+    leg2  =  math.exp( last_entry [2] - first_entry[2] )   
+    #net_value  =  0
+
+    return (net_value , len(bt) , trans_num, leg1, leg2 )
+
 
