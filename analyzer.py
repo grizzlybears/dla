@@ -5,6 +5,8 @@ import sqlite3
 import math
 import csv
 
+import pprint
+
 import db_operator 
 import data_struct
 import plotter
@@ -592,7 +594,11 @@ def faster_horse_all(inventory_ranges, dbcur):
         #if count >= 200:
         #    break
 
-
+# 返回数组
+#     T_day1,  {证券1:证券1的行情数组, 证券2:证券2的行情数组, ...   }
+#     T_day2,  {证券1:证券1的行情数组, 证券2:证券2的行情数组, ...   }
+#     T_day3,  {证券1:证券1的行情数组, 证券2:证券2的行情数组, ...   }
+#     ...
 def fetch_md_his_for_faster_horse2( dbcur, secs):
     select_clause = ""
     from_clause   = ""
@@ -615,9 +621,46 @@ def fetch_md_his_for_faster_horse2( dbcur, secs):
 
     sql = "%s\n%s\n%s\n%s\n%s\n" % (select_clause, from_clause, where_filter, join_clause ,more_filter )
 
-    print sql
-    return []
+    #print sql 
+    dbcur.execute (sql)
+    
+    row_num = 0
 
+    first_day_md = {}
+
+    #sec_num = len(secs)
+
+    his_md = []
+
+    row = dbcur.fetchone()
+    while row is not None:
+        row_num = row_num + 1
+
+        md = {}
+    
+        for i,sec in enumerate(secs):
+            " 日期，证券1的close，证券1的涨幅，证券2的close，证券2的涨幅 ....  "
+            close    = row[ 1 + 2 * i ]
+            delta_r  = row[ 1 + 2 * i + 1]
+
+            if 1 == row_num:
+                logged_close = 0 
+            else:
+                logged_close = math.log( close / first_day_md[sec.code][0] )
+            
+            md[sec.code] = [close,delta_r, logged_close]   # 收盘价，涨幅，对数化收盘价
+            
+        if 1 == row_num:
+            first_day_md = md
+
+        his_md.append( [ row[0], md ] )
+        
+        row = dbcur.fetchone()
+  
+    #pp = pprint.PrettyPrinter(indent=4)
+    #pp.pprint(his_md) 
+ 
+    return his_md 
 
 def faster_horse2( dbcur, secs, MA_Size1,MA_Size2 , start_day , end_day ):
     
@@ -625,53 +668,6 @@ def faster_horse2( dbcur, secs, MA_Size1,MA_Size2 , start_day , end_day ):
 
     return 
    
-    v_c1 = []
-    v_c2 = []
-
-    logged_his= []
-
-    #fieldnames = ['T_Day', str(sec1), str(sec2) , '' , '' ]
-    #logged_his.append( fieldnames );
-
-    row_num = 0
-
-    first_c1 = 0
-    first_c2 = 0
-
-    row = dbcur.fetchone()
-    while row is not None:
-
-        row_num = row_num + 1
-
-        close1 = float(row[1] )
-        close2 = float(row[3] )
-
-        delta1 = float(row[2])
-        delta2 = float(row[4])
-
-
-        if 1 == row_num:
-            # (相对于期初)对数化
-            logged_his.append( [row[0], 0, 0,  close1, close2, delta1, delta2 ] )
-            first_c1 = math.log(close1)
-            first_c2 = math.log(close2)
-
-        else:
-            # (相对于期初)对数化
-            logged1 = math.log(close1) - first_c1  
-            logged2 = math.log(close2) - first_c2 
-            logged_his.append( [
-                row[0]
-                , logged1 
-                , logged2
-                , close1
-                , close2
-                , delta1 
-                , delta2 
-                 ] )
-
-        row = dbcur.fetchone()
-
 
     bt,trans_num  = sim_faster_horse(
             sec1,sec2, logged_his
