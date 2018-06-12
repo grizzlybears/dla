@@ -520,6 +520,13 @@ def handle_faster_horse2( argv, argv0 = MY_NAME ):
         scope = ""
         if "" != start_day:
             scope = " %s~%s" % (start_day, end_day)
+        
+        s = ""
+        for sec in secs:
+            s = s + "%s " % sec
+
+        print s
+
 
         print "‘换快马%s’, %d T，V %f, 交易 %d 次, 同期各脚 %s, 业绩%f "  % (
                      scope 

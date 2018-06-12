@@ -4,6 +4,7 @@ import os
 import sqlite3
 import math
 import csv
+import collections
 
 import pprint
 
@@ -595,9 +596,9 @@ def faster_horse_all(inventory_ranges, dbcur):
         #    break
 
 # 返回数组
-#     T_day1,  {证券1:证券1的行情数组, 证券2:证券2的行情数组, ...   }
-#     T_day2,  {证券1:证券1的行情数组, 证券2:证券2的行情数组, ...   }
-#     T_day3,  {证券1:证券1的行情数组, 证券2:证券2的行情数组, ...   }
+#     T_day1,  {证券1:证券1的行情, 证券2:证券2的行情, ...   }
+#     T_day2,  {证券1:证券1的行情, 证券2:证券2的行情, ...   }
+#     T_day3,  {证券1:证券1的行情, 证券2:证券2的行情, ...   }
 #     ...
 # 其中‘行情’ 是  [收盘价，涨幅，对数化收盘价]
 def fetch_md_his_for_faster_horse2( dbcur, secs):
@@ -627,7 +628,7 @@ def fetch_md_his_for_faster_horse2( dbcur, secs):
     
     row_num = 0
 
-    first_day_md = {}
+    first_day_md = collections.OrderedDict ()
 
     #sec_num = len(secs)
 
@@ -637,7 +638,7 @@ def fetch_md_his_for_faster_horse2( dbcur, secs):
     while row is not None:
         row_num = row_num + 1
 
-        md = {}
+        md = collections.OrderedDict ()
     
         for i,sec in enumerate(secs):
             " 日期，证券1的close，证券1的涨幅，证券2的close，证券2的涨幅 ....  "
@@ -666,15 +667,20 @@ def fetch_md_his_for_faster_horse2( dbcur, secs):
 #   [当日的涨幅, ]      #最简单的指标 ^^
 def make_indices_by_last_delta( dbcur, secs, his_md ):
     for i, md_that_day  in enumerate(his_md):
-        indices = {}
+        indices = collections.OrderedDict ()
 
         for code,md_set in md_that_day[1].iteritems():
+            #if 0 == i:
+            #    print "%s " % code 
             indices_for_1_sec = []
 
             delta_r_1_day = md_set[1]  # 涨幅
             indices_for_1_sec.append( delta_r_1_day)
 
             indices[code] = indices_for_1_sec
+        
+        #if 0 == i:
+        #    print " 以上做指标 \n" 
 
 
         md_that_day.append( indices)
@@ -733,9 +739,16 @@ def sim_faster_horse2( his_data,  start_day = "", end_day = ""):
 
             
             for code,md_set in md_that_day.iteritems():
-
+ 
+                #if 0 == i:
+                #    print "%s " % code 
+ 
                 logged_close_1_day = md_set[2]  # 对数化收盘价
                 r_that_day.append( logged_close_1_day)
+ 
+            #if 0 == i:
+            #    print " 以上第一天\n" 
+
 
             r_that_day.append( 0 )    #策略对数化收盘价
             r_that_day.append( None ) #换仓提示
@@ -788,7 +801,7 @@ def sim_faster_horse2( his_data,  start_day = "", end_day = ""):
                 r_that_day.append( y_policy + y_best_delta_logged + TRANS_COST )    #策略对数化收盘价
                 r_that_day.append( "%d" % y_best_no ) #换仓提示
                 r_that_day.append( "B: %s" % y_best_code ) #换仓明细
-                we_hold = y_best_no 
+                we_hold = y_best_code
                 trans_num = trans_num + 1
             elif we_hold == y_best_code:
                 # 不用动
@@ -833,8 +846,10 @@ def faster_horse2( dbcur, secs, MA_Size1,MA_Size2 , start_day , end_day ):
     
     legs = []
     for i,sec in enumerate(secs):
+        #print "%s " % str(sec) 
         legs.append( math.exp( last_entry [ i + 1] - first_entry[ i + 1] ))
     #net_value  =  0
+    #print "以上fh2\n"
 
     return ( net_value , len(bt) , trans_num, legs )
 
