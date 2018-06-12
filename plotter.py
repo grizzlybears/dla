@@ -265,7 +265,52 @@ def generate_htm_chart_for_faster_horse( sec1, sec2, data , suffix):
 
     return 
 
-           
+# 'data' : 2-D array 
+#
+#     横坐标   line1  line2  ... lineN lineN上的标注  lineN上的标注详细   
+#                                只有最后一根line N 是有标注的
+#
+def generate_htm_chart_for_faster_horse2( secs,  data , suffix):
+    basename=""
+    header = ['日期'] 
+    title_nut  = ""
+    
+    for i, sec in enumerate(secs):
+        if 0==i:
+            basename = sec.code
+            title_nut = str(sec)
+        else:
+            basename = basename + "_" + sec.code
+            title_nut = " " + str(sec)
+        
+        header.append( str(sec))
+
+    basename = basename + "_fh2%s" % suffix 
+    header.append('换快马')
+
+    jsfilename = "%s.js" % ( basename, )
+    jsfilepath = "%s/%s" % (data_struct.WORKING_DIR, jsfilename) 
+    generate_js_head_n_data (jsfilepath,  header , data)
+ 
+    filename = "%s/%s.html" % (data_struct.WORKING_DIR, basename)
+
+    with io.open( filename, "wb" ) as the_file:
+        write_chart_html_header( the_file, jsfilename,  "换快马 %s %s" % (title_nut, suffix) ) 
+        draw_chart_w_anno_full( the_file,  basename , header )
+    
+        if len(data) > 1000:
+            draw_chart_w_anno_last_x( the_file, basename , header,  600 , 1 )
+            draw_chart_w_anno_last_x( the_file, basename , header,  300 , 2 )
+
+        head_end_body_begin( the_file)
+        chart_div_full(the_file)
+     
+        if len(data) > 1000:
+        
+            chart_div_subvar( the_file,1 )
+            chart_div_subvar( the_file,2 )
+    return 
+          
 
 # 'header' : 1D数组，列名 ，第一列是横坐标
 # 'data' :   2D数组，数据

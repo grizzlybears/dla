@@ -599,6 +599,7 @@ def faster_horse_all(inventory_ranges, dbcur):
 #     T_day2,  {证券1:证券1的行情数组, 证券2:证券2的行情数组, ...   }
 #     T_day3,  {证券1:证券1的行情数组, 证券2:证券2的行情数组, ...   }
 #     ...
+# 其中‘行情’ 是  [收盘价，涨幅，对数化收盘价]
 def fetch_md_his_for_faster_horse2( dbcur, secs):
     select_clause = ""
     from_clause   = ""
@@ -640,8 +641,8 @@ def fetch_md_his_for_faster_horse2( dbcur, secs):
     
         for i,sec in enumerate(secs):
             " 日期，证券1的close，证券1的涨幅，证券2的close，证券2的涨幅 ....  "
-            close    = row[ 1 + 2 * i ]
-            delta_r  = row[ 1 + 2 * i + 1]
+            close    = float (row[ 1 + 2 * i ])
+            delta_r  = float (row[ 1 + 2 * i + 1])
 
             if 1 == row_num:
                 logged_close = 0 
@@ -657,37 +658,183 @@ def fetch_md_his_for_faster_horse2( dbcur, secs):
         
         row = dbcur.fetchone()
   
-    #pp = pprint.PrettyPrinter(indent=4)
-    #pp.pprint(his_md) 
- 
+
     return his_md 
+
+
+# ‘指标’数组: 
+#   [当日的涨幅, ]      #最简单的指标 ^^
+def make_indices_by_last_delta( dbcur, secs, his_md ):
+    for i, md_that_day  in enumerate(his_md):
+        indices = {}
+
+        for code,md_set in md_that_day[1].iteritems():
+            indices_for_1_sec = []
+
+            delta_r_1_day = md_set[1]  # 涨幅
+            indices_for_1_sec.append( delta_r_1_day)
+
+            indices[code] = indices_for_1_sec
+
+
+        md_that_day.append( indices)
+
+    return his_md
+
+# 把his_md扩充为以下的样子
+#     T_day1,  {证券1:证券1的行情, 证券2:证券2的行情, ...   },  {证券1:证券1的指标, 证券2:证券2的指标, ...   }
+#     T_day2,  {证券1:证券1的行情, 证券2:证券2的行情, ...   },  {证券1:证券1的指标, 证券2:证券2的指标, ...   }
+#     T_day3,  {证券1:证券1的行情, 证券2:证券2的行情, ...   },  {证券1:证券1的指标, 证券2:证券2的指标, ...   }
+#     ...
+# 其中‘行情’和‘指标’都是数组
+def make_indices_for_faster_horse2( dbcur, secs, his_md ):
+    return make_indices_by_last_delta( dbcur, secs, his_md )
+
+
+# 模拟换多马策略
+# Input:  2-D array 'logged_his'
+#         日期   各脚行情  各脚指标
+#         ...
+#
+# Output: 2-D array , 交易数
+#         日期   脚1对数化收盘价  脚2对数化收盘价 ...  脚N对数化收盘价  策略对数化收盘价  换仓提示  换仓详细  
+#         ...
+#
+def sim_faster_horse2( his_data,  start_day = "", end_day = ""):    
+    
+    result = []
+    trans_num = 0 
+    
+    sec_num =0
+
+    we_hold = ""  # "" 表示'空仓'，否则表示我们持仓的代码
+
+    for i, row in enumerate(his_data):
+
+        if "" != start_day and row[0] < start_day:
+            # 略过
+            continue
+
+        if "" != end_day and row[0] >= end_day:
+            break
+
+        #print  "\t%s\n"  %  str(row).decode('string_escape')
+        
+        md_that_day      = row[1]   #当日行情
+        #indices_that_day = row[2]   #当日指标
+
+        if i == 0 :
+            sec_num = len( md_that_day)
+
+            # 第一天，没有操作 ，也没有损益
+
+            r_that_day = []
+            r_that_day.append( row[0] )
+
+            
+            for code,md_set in md_that_day.iteritems():
+
+                logged_close_1_day = md_set[2]  # 对数化收盘价
+                r_that_day.append( logged_close_1_day)
+
+            r_that_day.append( 0 )    #策略对数化收盘价
+            r_that_day.append( None ) #换仓提示
+            r_that_day.append( None ) #换仓明细
+
+            result.append( r_that_day )
+        else:
+            # 昨日本策略的收盘价
+            if len(result) > 0:
+                y_policy  = result[ len(result) - 1 ][ sec_num + 1  ]    
+            else:
+                y_policy = 0
+
+            #昨日行情
+            y_md      =  his_data[i - 1][1]
+
+            #昨日指标 
+            y_indices =  his_data[i - 1][2]
+
+            #最简单的换多马策略：昨日哪个指标涨幅最大，就假设今日我们持有该证券，并且今日损益==今日该证券的损益
+
+            best_delta  = -10000
+            y_best_code = ""
+            y_best_no   = -1
+            
+            i = 1
+            for code,indices_for_1_sec in y_indices.iteritems():
+                if indices_for_1_sec[0] > best_delta:
+                    best_delta  = indices_for_1_sec[0]
+                    y_best_code = code
+                    y_best_no   = i 
+
+                i = i + 1
+
+            # 所以我们应该持有 y_best_code
+            y_best_delta_logged = md_that_day[y_best_code][2] - y_md[y_best_code][2]  
+            
+            # 记录各脚
+            r_that_day = []
+            r_that_day.append( row[0] )
+            
+            for code,md_set in md_that_day.iteritems():
+                logged_close_1_day = md_set[2]  # 对数化收盘价
+                r_that_day.append( logged_close_1_day)
+
+            # 策略的动作
+            if "" == we_hold:
+                # 建仓 
+                
+                r_that_day.append( y_policy + y_best_delta_logged + TRANS_COST )    #策略对数化收盘价
+                r_that_day.append( "%d" % y_best_no ) #换仓提示
+                r_that_day.append( "B: %s" % y_best_code ) #换仓明细
+                we_hold = y_best_no 
+                trans_num = trans_num + 1
+            elif we_hold == y_best_code:
+                # 不用动
+                r_that_day.append( y_policy + y_best_delta_logged )    #策略对数化收盘价
+                r_that_day.append( None ) #换仓提示
+                r_that_day.append( None ) #换仓明细
+            else:
+                # 换仓
+                r_that_day.append( y_policy + y_best_delta_logged + TRANS_COST + TRANS_COST )    #策略对数化收盘价
+                r_that_day.append( "%d" % y_best_no ) #换仓提示
+                r_that_day.append( "%s -> %s" % (we_hold, y_best_code) ) #换仓明细
+                we_hold = y_best_code
+                trans_num = trans_num + 1
+
+            result.append( r_that_day )
+
+
+    return (result ,  trans_num )
+
+
 
 def faster_horse2( dbcur, secs, MA_Size1,MA_Size2 , start_day , end_day ):
     
     md_his_data = fetch_md_his_for_faster_horse2( dbcur, secs)
+    
+    make_indices_by_last_delta( dbcur, secs, md_his_data )
 
-    return 
-   
-
-    bt,trans_num  = sim_faster_horse(
-            sec1,sec2, logged_his
-            , MA_Size1,  MA_Size2
-            , start_day , end_day)
-    #return (0, row_num , trans_num, 0, 0 )
+    #pp = pprint.PrettyPrinter(indent=4)
+    #pp.pprint(md_his_data) 
  
+    bt,trans_num  =  sim_faster_horse2( md_his_data,  start_day,  end_day)
+   
     suffix = ""
     if "" != start_day: 
         suffix = ".%s_%s" % (start_day, end_day)
 
-    plotter.generate_htm_chart_for_faster_horse( sec1, sec2, bt , suffix)
+    plotter.generate_htm_chart_for_faster_horse2( secs, bt , suffix)
     
     first_entry = bt[0]
-    last_entry = bt[len(bt) - 1 ]
-    net_value  =  math.exp( last_entry [3] ) 
-    leg1  =  math.exp( last_entry [1] - first_entry[1] )   
-    leg2  =  math.exp( last_entry [2] - first_entry[2] )   
+    last_entry  = bt[len(bt) - 1 ]
+    net_value   =  math.exp( last_entry [ len(secs) +1] ) 
+    
+    legs = []
+    for i,sec in enumerate(secs):
+        legs.append( math.exp( last_entry [ i + 1] - first_entry[ i + 1] ))
     #net_value  =  0
 
-    return (net_value , len(bt) , trans_num, leg1, leg2 )
-
+    return ( net_value , len(bt) , trans_num, legs )
 

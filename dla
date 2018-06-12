@@ -513,8 +513,7 @@ def handle_faster_horse2( argv, argv0 = MY_NAME ):
             secs.append ( inventory_ranges[c])
         
 
-        #net_value, day_num, t_num, legs = 
-        analyzer.faster_horse2(
+        net_value, day_num, t_num, legs =  analyzer.faster_horse2(
                  dbcur, secs, MA_Size1, MA_Size2 , start_day, end_day 
                  )
 
@@ -522,6 +521,12 @@ def handle_faster_horse2( argv, argv0 = MY_NAME ):
         if "" != start_day:
             scope = " %s~%s" % (start_day, end_day)
 
+        print "‘换快马%s’, %d T，V %f, 交易 %d 次, 同期各脚 %s, 业绩%f "  % (
+                     scope 
+                     , day_num, net_value, t_num
+                     , str(legs)
+                     , net_value - sum( legs ) / len(legs)
+                     )
        
         # DB clean up
         conn.commit()
