@@ -664,7 +664,7 @@ def fetch_md_his_for_faster_horse2( dbcur, secs):
 
 
 # ‘指标’数组: 
-#   [当日的涨幅, ]      #最简单的指标 ^^
+#   [当日的涨幅,  ]      #最简单的指标 ^^
 def make_indices_by_last_delta( dbcur, secs, his_md ):
     for i, md_that_day  in enumerate(his_md):
         indices = collections.OrderedDict ()
@@ -684,6 +684,73 @@ def make_indices_by_last_delta( dbcur, secs, his_md ):
 
 
         md_that_day.append( indices)
+
+    return his_md
+
+# ‘指标’数组: 
+#   [涨幅, MA(涨幅, $MA_Size1) , MA(涨幅, $MA_Size2)    ]      
+def make_indices_by_MA_delta( dbcur, secs, his_md,MA_Size1 = 3,  MA_Size2 = 22 ):
+
+    MA_Sum1 = {}  # 代码 => 最近若干项指标之和，求MA要用 
+    MA_Sum2 = {}
+
+    for sec in secs:
+        MA_Sum1[sec.code] = 0
+        MA_Sum2[sec.code] = 0
+
+    for i, md_that_day  in enumerate(his_md):
+        # md_that_day 原本是
+        #   [ 日期, {代码=>行情数组}  ]
+        # 的型状
+        indices = collections.OrderedDict ()
+
+        for code,md_set in md_that_day[1].iteritems():
+            #if 0 == i:
+            #    print "%s " % code 
+
+            delta_r_1_day = md_set[1]  # 涨幅
+
+            MA1 = 0
+
+            if MA_Size1 <= 1:
+                MA1 = delta_r_1_day 
+            elif i < MA_Size1:
+                #累加的窗口
+                MA_Sum1[code] = MA_Sum1[code] + delta_r_1_day 
+                #部分MA
+                MA1 = MA_Sum1[code] / (i +1)
+            else:
+                #滑动的窗口
+                #print "i=%d, %s" % (i,his_md[ i - MA_Size1 ] )
+
+                MA_Sum1[code] = MA_Sum1[code] + delta_r_1_day - his_md[ i - MA_Size1 ][2][code][0]
+                # MA
+                MA1 = MA_Sum1[code] / MA_Size1 
+            
+            MA2 = 0
+            if MA_Size2 <= 1:
+                MA2 = delta_r_1_day 
+            elif i < MA_Size2:
+                #累加的窗口
+                MA_Sum2[code] = MA_Sum2[code] + delta_r_1_day 
+                #部分MA
+                MA2 = MA_Sum2[code] / (i +1)
+            else:
+                #滑动的窗口
+                MA_Sum2[code] = MA_Sum2[code] + delta_r_1_day - his_md[ i - MA_Size2 ][2][code][0]
+                # MA
+                MA2 = MA_Sum2[code] / MA_Size2
+
+
+            indices_for_1_sec = [ delta_r_1_day, MA1 ,MA2 ]
+
+            indices[code] = indices_for_1_sec
+
+        # md_that_day 扩展为
+        #   [ 日期, {代码=>行情数组} , {代码=>指标数组} ]
+        # 的型状
+        md_that_day.append( indices)
+        #print "%s  %s" % ( md_that_day[0], indices)
 
     return his_md
 
@@ -940,7 +1007,9 @@ def sim_faster_horse3( his_data,  switch_threshold, start_day = "", end_day = ""
 #     根据昨日涨幅从从高到底排名。
 #     如果当前空仓，就建仓第一名。
 #     如果当前持仓的名次，大于等于‘swicth_threshold’，就换仓至第一名。
-            sorted_y_indices = sorted ( y_indices.items(), key=lambda sec:sec[1][0], reverse=True)
+            # 指标数组: [涨幅，MA1 of 涨幅, MA2 of 涨幅]
+            WHICH_INDI = 1 # 我们取指标数组里哪一个指标?
+            sorted_y_indices = sorted ( y_indices.items(), key=lambda sec:sec[1][WHICH_INDI], reverse=True)
             # [ (第1名code, 第1名指标数组) , (第2名code, 第2名指标数组), ....  ]
             #print "sorted y:%s" % sorted_y_indices 
             y_best_code = sorted_y_indices[0][0]
@@ -959,9 +1028,9 @@ def sim_faster_horse3( his_data,  switch_threshold, start_day = "", end_day = ""
                 pos = 0  #可‘并列’的名次
                 last_indi = 10000
                 for i,walker in enumerate(sorted_y_indices, start = 1):
-                    if walker[1][0] != last_indi:
+                    if walker[1][WHICH_INDI] != last_indi:
                         pos = i
-                        last_indi = walker[1][0]
+                        last_indi = walker[1][WHICH_INDI]
 
                     if walker[0] == we_hold:
                         we_hold_pos = pos
@@ -1028,7 +1097,8 @@ def faster_horse2( dbcur, secs, MA_Size1,MA_Size2 , start_day , end_day ):
     
     md_his_data = fetch_md_his_for_faster_horse2( dbcur, secs)
     
-    make_indices_by_last_delta( dbcur, secs, md_his_data )
+    #make_indices_by_last_delta( dbcur, secs, md_his_data )
+    make_indices_by_MA_delta( dbcur, secs, md_his_data, MA_Size1, MA_Size2  )
 
     #pp = pprint.PrettyPrinter(indent=4)
     #pp.pprint(md_his_data) 
