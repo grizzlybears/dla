@@ -28,8 +28,8 @@ def print_usage( argv0 = MY_NAME ):
     print "  %s correl      <代码1> <代码2> 考察指定两个代码的相关性 " % argv0
     print "  %s correl_all  [<代码列表文件>] 考察所有代码之间的相关性 " % argv0
     print "  %s show_correl 列出记录与DB的相关性关系 " % argv0
-    print "  %s faster_horse    <代码1> <代码2> [短周期=1] [中周期=20] 回测‘换快马’策略" % argv0
-    print "  %s faster_horse2   <代码1>,<代码2>[,<代码3> ...] [短周期=1] [中周期=20] 回测‘换多马’策略" % argv0
+    print "  %s faster_horse    <代码1> <代码2> [短周期=1] [中周期=20] [开始] [结束] 回测‘换快马’策略" % argv0
+    print "  %s faster_horse2   <代码1>,<代码2>[,<代码3> ...] [MA周期=1] [门槛=1] [开始] [结束] 回测‘换多马’策略" % argv0
     print "  %s probe_faster_horse   <代码1> <代码2> 所有‘换快马’策略的所有参数组合" % argv0
     print "  %s import      <日线文件>   导入单个日线文件" % argv0
     print "  %s importdir   <日线目录>   导入指定目录下所有日线文件(.txt) " % argv0
@@ -463,25 +463,35 @@ def handle_faster_horse2( argv, argv0 = MY_NAME ):
     
     i = len(argv)
     if ( i < 1 ):
-        print "  %s faster_horse2   <代码1>,<代码2>[,<代码3> ...] [短周期=1] [中周期=20] 回测‘换多马’策略" % argv0
+        print "  %s faster_horse2   <代码1>,<代码2>[,<代码3> ...] [MA周期=1] [门槛]  [开始日] [结束日] 回测‘换多马’策略" % argv0
         return 1
 
     MA_Size1 = 1
-    MA_Size2 = 20
+    switch_threshold = 1
 
     start_day = ""
     end_day   = ""
 
-    if len(argv) >= 3 :
+    if len(argv) >= 2 :
         try:
             MA_Size1 =  int ( argv[1])
-            MA_Size2 =  int ( argv[2])
 
-            if MA_Size1 < 0 or MA_Size2 <=0 or MA_Size1 >= MA_Size2:
-                print "短期MA天数 必须小于 中期MA天数， 且都必须是正整数。"
+            if MA_Size1 < 0 :
+                print "MA天数 必须是正整数。"
                 return 2
         except ValueError:
             print "短期MA天数/中期MA天数， 都必须是正整数。"
+            return 3
+ 
+    if len(argv) >= 3 :
+        try:
+            switch_threshold  =  int ( argv[2])
+
+            if switch_threshold  < 1 :
+                print "换仓门槛不能小于1。"
+                return 2
+        except ValueError:
+            print "换仓门槛不能小于1。"
             return 3
 
     if  len(argv) >= 4:
@@ -514,7 +524,7 @@ def handle_faster_horse2( argv, argv0 = MY_NAME ):
         
 
         net_value, day_num, t_num, legs =  analyzer.faster_horse2(
-                 dbcur, secs, MA_Size1, MA_Size2 , start_day, end_day 
+                 dbcur, secs, MA_Size1, switch_threshold , start_day, end_day 
                  )
 
         scope = ""

@@ -1093,18 +1093,18 @@ def sim_faster_horse3( his_data,  switch_threshold, start_day = "", end_day = ""
 
 
 
-def faster_horse2( dbcur, secs, MA_Size1,MA_Size2 , start_day , end_day ):
+def faster_horse2( dbcur, secs, MA_Size1, switch_threshold , start_day , end_day ):
     
     md_his_data = fetch_md_his_for_faster_horse2( dbcur, secs)
     
     #make_indices_by_last_delta( dbcur, secs, md_his_data )
-    make_indices_by_MA_delta( dbcur, secs, md_his_data, MA_Size1, MA_Size2  )
+    make_indices_by_MA_delta( dbcur, secs, md_his_data, MA_Size1, 0 )
 
     #pp = pprint.PrettyPrinter(indent=4)
     #pp.pprint(md_his_data) 
  
     #bt,trans_num  =  sim_faster_horse2( md_his_data,  start_day,  end_day)
-    bt,trans_num  =  sim_faster_horse3( md_his_data, 1 ,  start_day,  end_day)
+    bt,trans_num  =  sim_faster_horse3( md_his_data, switch_threshold ,  start_day,  end_day)
    
     suffix = ""
     if "" != start_day: 
