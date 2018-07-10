@@ -31,6 +31,7 @@ def print_usage( argv0 = MY_NAME ):
     print "  %s faster_horse    <代码1> <代码2> [短周期=1] [中周期=20] [开始] [结束] 回测‘换快马’策略" % argv0
     print "  %s faster_horse2   <代码1>,<代码2>[,<代码3> ...] [MA周期=1] [门槛=1] [开始] [结束] 回测‘换多马’策略" % argv0
     print "  %s probe_faster_horse   <代码1> <代码2> 所有‘换快马’策略的所有参数组合" % argv0
+    print "  %s rotate  <代码1>,<代码2>[,<代码3> ...] [最多持仓数=5] [开始] [结束] 回测‘轮换’策略" % argv0
     print "  %s import      <日线文件>   导入单个日线文件" % argv0
     print "  %s importdir   <日线目录>   导入指定目录下所有日线文件(.txt) " % argv0
 
@@ -566,6 +567,102 @@ def handle_faster_horse2( argv, argv0 = MY_NAME ):
 
     return 0
 
+# 处理 'rotate' 子命令 , ‘轮换’策略的回测
+def handle_rotate( argv, argv0 = MY_NAME ): 
+    
+    i = len(argv)
+    if ( i < 1 ):
+        print "  %s rotate  <代码1>,<代码2>[,<代码3> ...] [最多持仓品种=1] [开始日] [结束日] 回测‘换多马’策略" % argv0
+        return 1
+
+    max_hold = 1
+
+    start_day = ""
+    end_day   = ""
+
+    if len(argv) >= 2 :
+        try:
+            max_hold =  int ( argv[1])
+
+            if max_hold  < 1 :
+                print "最多持仓品种数必须>1 。"
+                return 2
+        except ValueError:
+            print "最多持仓品种数必须>1 。"
+            return 3
+ 
+    if  len(argv) >= 3:
+        start_day =argv[2]
+        if  not data_struct.is_yyyy_mm_dd( start_day ):
+            print "开始日期必须是 yyyy-mm-dd"
+            return 2
+
+    if len(argv) >= 4:
+        end_day =argv[3]
+        if  not data_struct.is_yyyy_mm_dd( end_day ):
+            print "结束日期必须是 yyyy-mm-dd"
+            return 2
+    
+    try:
+        # connect to DB 
+        conn = db_operator.get_db_conn()
+        dbcur = conn.cursor()
+        inventory_ranges = db_operator.get_inventory(dbcur)
+
+        # real stuff
+        codes = argv[0].split(',')
+
+        secs = []
+        for c in codes:
+            if c  not in inventory_ranges:
+                print "%s not exists." % c
+                return 1
+            secs.append ( inventory_ranges[c])
+        
+
+        net_value, day_num, t_num, legs =  analyzer.rotate(
+                 dbcur, secs, max_hold, start_day, end_day 
+                 )
+
+        scope = ""
+        if "" != start_day:
+            scope = " %s~%s" % (start_day, end_day)
+        
+        s = ""
+        for sec in secs:
+            s = s + "%s " % sec
+
+        print s
+
+
+        print "‘轮换%s’, %d T，V %f, 交易 %d 次, 同期各脚 %s, 业绩%f "  % (
+                     scope 
+                     , day_num, net_value, t_num
+                     , str(legs)
+                     , net_value - sum( legs ) / len(legs)
+                     )
+       
+        # DB clean up
+        conn.commit()
+
+    except  Exception as e:
+        #pp = pprint.PrettyPrinter(indent=4)
+        #pp.pprint(e) 
+        
+        (t, v, bt) = sys.exc_info()
+        traceback.print_exception(t, v, bt)
+
+        print
+        print e
+
+        return 1
+    finally:
+        dbcur.close()
+        conn.close()
+
+
+    return 0
+
 
 
 # 处理 'gen_alpha' 子命令
@@ -648,6 +745,8 @@ def main():
         return handle_bt_faster_horse ( sys.argv[2:] )  
     elif ('faster_horse2' == sub_command ):
         return handle_faster_horse2 ( sys.argv[2:] )    
+    elif ('rotate' == sub_command ):
+        return handle_rotate ( sys.argv[2:] )  
     elif ('probe_faster_horse' == sub_command ):
         return handle_probe_faster_horse ( sys.argv[2:] ) 
     elif ('faster_horse_all' == sub_command ):

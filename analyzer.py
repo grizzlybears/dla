@@ -919,6 +919,7 @@ def sim_faster_horse2( his_data,  start_day = "", end_day = ""):
 
 # 简单的换多马策略：
 #     根据昨日涨幅从从高到底排名。
+#     如果第一名 <= 0，则空仓。否则，
 #     如果当前空仓，就建仓第一名。
 #     如果当前持仓的名次，大于等于‘swicth_threshold’，就换仓至第一名。
 # Input:  2-D array 'logged_his'
@@ -1001,7 +1002,8 @@ def sim_faster_horse3( his_data,  switch_threshold, start_day = "", end_day = ""
 
             #昨日指标  {code1:指标数组1, code2:指标数组2, ... }
             y_indices =  his_data[i - 1][2]
-            #print "TDay %s, yesterday %s  %s %f，we hold '%s' " % ( t_day, y_md, y_indices, y_policy, we_hold) 
+            #print "TDay %s, 昨行情%s  昨指标%s, 净值 %f，持仓'%s' " % ( t_day, y_md, y_indices, y_policy, we_hold) 
+            #print "TDay %s, 昨行情%s  今行情%s, 昨净值 %f，持仓'%s' " % ( t_day, y_md, md_that_day , y_policy, we_hold) 
 
 # 简单的换多马策略：
 #     根据昨日涨幅从从高到底排名。
@@ -1013,6 +1015,7 @@ def sim_faster_horse3( his_data,  switch_threshold, start_day = "", end_day = ""
             # [ (第1名code, 第1名指标数组) , (第2名code, 第2名指标数组), ....  ]
             #print "sorted y:%s" % sorted_y_indices 
             y_best_code = sorted_y_indices[0][0]
+            y_best_indi = sorted_y_indices[0][1][WHICH_INDI] 
             
             y_best_no   = -1  #昨日最佳是几号证券，chart里的标注用
             we_hold_pos = -1  #我们的持仓昨天排第几名
@@ -1043,8 +1046,16 @@ def sim_faster_horse3( his_data,  switch_threshold, start_day = "", end_day = ""
                     #    print "T_day %s, we hold %s pos %d, keep." %( t_day, we_hold, we_hold_pos )
 
             # 所以我们应该持有 y_best_code
+
+            # y_best_code 当日的损益
             y_best_delta_logged = md_that_day[y_best_code][2] - y_md[y_best_code][2]  
             
+            # 补丁:跌的话就空仓
+            #if y_best_indi  <= 0:
+            #    y_best_code = ""
+            #    y_best_delta_logged = 0
+
+
             #print "we should hold %s, today profit %f" % (y_best_code , y_best_delta_logged)
             # 记录各脚
             r_that_day = []
@@ -1056,16 +1067,24 @@ def sim_faster_horse3( his_data,  switch_threshold, start_day = "", end_day = ""
 
             # 策略的动作
             if "" == we_hold:
-                # 建仓 
 
-                t_policy = y_policy + y_best_delta_logged + TRANS_COST
-                
-                r_that_day.append(t_policy  )    #策略对数化收盘价
-                r_that_day.append( "%d" % y_best_no ) #换仓提示
-                r_that_day.append( "%s B: %s" % (t_day, y_best_code )) #换仓明细
-                we_hold = y_best_code
-                trans_num = trans_num + 1
-                #print "建仓%s, 当天净值%f " % ( y_best_code, t_policy )
+                if "" != y_best_code:
+                    # 建仓 
+                    t_policy = y_policy + y_best_delta_logged + TRANS_COST
+                    
+                    r_that_day.append(t_policy  )    #策略对数化收盘价
+                    r_that_day.append( "%d" % y_best_no ) #换仓提示
+                    r_that_day.append( "%s B: %s" % (t_day, y_best_code )) #换仓明细
+                    we_hold = y_best_code
+                    trans_num = trans_num + 1
+                    #print "%s 建仓%s, 当天净值%f " % ( t_day, y_best_code, t_policy )
+                else:
+                    # 保持空仓
+                    t_policy = y_policy 
+                    r_that_day.append( t_policy )    #策略对数化收盘价
+                    r_that_day.append( None ) #换仓提示
+                    r_that_day.append( None ) #换仓明细
+                    #print "%s 保持空仓, 当天净值%f " % ( t_day, t_policy )
 
             elif we_hold == y_best_code:
                 # 不用动
@@ -1074,23 +1093,34 @@ def sim_faster_horse3( his_data,  switch_threshold, start_day = "", end_day = ""
                 r_that_day.append( None ) #换仓提示
                 r_that_day.append( None ) #换仓明细
                 
-                #print "不动%s, 当天净值%f " % ( y_best_code, t_policy )
+                #print "%s 持仓%s, 当天净值%f " % (t_day, y_best_code, t_policy )
             else:
-                # 换仓
-                t_policy = y_policy + y_best_delta_logged + TRANS_COST + TRANS_COST
-                r_that_day.append( t_policy  )    #策略对数化收盘价
-                r_that_day.append( "%d" % y_best_no ) #换仓提示
-                r_that_day.append( "%s %s -> %s" % (t_day, we_hold, y_best_code) ) #换仓明细
-                we_hold = y_best_code
-                trans_num = trans_num + 1
-                
-                #print "换仓%s, 当天净值%f " % ( y_best_code, t_policy )
+                if "" != y_best_code:
+                    # 换仓
+                    t_policy = y_policy + y_best_delta_logged + TRANS_COST + TRANS_COST
+                    r_that_day.append( t_policy  )    #策略对数化收盘价
+                    r_that_day.append( "%d" % y_best_no ) #换仓提示
+                    r_that_day.append( "%s %s -> %s" % (t_day, we_hold, y_best_code) ) #换仓明细
+                    we_hold = y_best_code
+                    trans_num = trans_num + 1
+                    
+                    #print "%s 换仓%s, 当天净值%f " % ( t_day, y_best_code, t_policy )
+                else:
+                    # 空仓
+                    t_policy = y_policy +  TRANS_COST
+                    r_that_day.append( t_policy  )    #策略对数化收盘价
+                    r_that_day.append( "0" ) #换仓提示
+                    r_that_day.append( "%s S:%s" % (t_day, we_hold) ) #换仓明细
+                    
+                    #print "%s 清空%s, 当天净值%f " % ( t_day, we_hold , t_policy )
+                    
+                    we_hold = y_best_code
+                    trans_num = trans_num + 1
 
             result.append( r_that_day )
             #print
 
     return (result ,  trans_num )
-
 
 
 def faster_horse2( dbcur, secs, MA_Size1, switch_threshold , start_day , end_day ):
@@ -1115,6 +1145,291 @@ def faster_horse2( dbcur, secs, MA_Size1, switch_threshold , start_day , end_day
     first_entry = bt[0]
     last_entry  = bt[len(bt) - 1 ]
     net_value   =  math.exp( last_entry [ len(secs) +1] ) 
+    
+    legs = []
+    for i,sec in enumerate(secs):
+        #print "%s " % str(sec) 
+        legs.append( math.exp( last_entry [ i + 1] - first_entry[ i + 1] ))
+    #net_value  =  0
+    #print "以上fh2\n"
+
+    return ( net_value , len(bt) , trans_num, legs )
+
+
+# 获得‘可并列’的名次。
+#   indices:  [ (第1名code, 第1名指标数组) , (第2名code, 第2名指标数组), ....  ]
+#
+#   WHICH_INDI: 取指标数组里哪一个指标?
+#
+#  返回 (可并列的名次,  sorted_indices 中的下标 )
+def get_rank(code, sorted_indices, WHICH_INDI):
+    pos = 0  #可‘并列’的名次
+
+    last_indi = 10000
+    for i,walker in enumerate(sorted_indices, start = 1):
+        if walker[1][WHICH_INDI] != last_indi:
+            pos = i
+            last_indi = walker[1][WHICH_INDI]
+
+        if walker[0] == code:
+            return  pos, i-1
+
+    raise Exception("%s不在昨日行情中。" % code );
+
+
+TRADE_LOSS = 0.0003
+
+def build_t_hint( t_day, to_sell, to_buy):
+    s = t_day 
+    
+    if len(to_sell) > 0:
+        s = s +" S:"
+        for i,one in enumerate( to_sell) :
+            if 0 == i:
+                s = s + str(one)
+            else:
+                s = s + "," + str(one)
+
+    
+    if len(to_buy) > 0:
+        s = s + " B:"
+        for i,one in enumerate( to_buy) :
+            if 0 == i:
+                s = s + str(one)
+            else:
+                s = s + "," + str(one)
+
+    return s
+
+def build_p_hint( t_day,to_hold, to_sell, to_buy):
+    s = t_day 
+
+    if len(to_hold) > 0:
+        s = s +" H:"
+        for i,one in enumerate( to_hold) :
+            if 0 == i:
+                s = s + str(one)
+            else:
+                s = s + "," + str(one)
+
+     
+    if len(to_sell) > 0:
+        s = s +" S:"
+        for i,one in enumerate( to_sell) :
+            if 0 == i:
+                s = s + str(one)
+            else:
+                s = s + "," + str(one)
+
+    
+    if len(to_buy) > 0:
+        s = s + " B:"
+        for i,one in enumerate( to_buy) :
+            if 0 == i:
+                s = s + str(one)
+            else:
+                s = s + "," + str(one)
+
+    return s
+
+
+INITIAL_BALANCE = 10000.0  # 策略期初金额
+
+# 简单的轮换策略：
+#     根据昨日涨幅从从高到底排名。
+#     前M名如果>0，则各给1/M的仓位。
+# Input:  2-D array 'logged_his'
+#         日期   各脚行情  各脚指标
+#         ...
+#
+# Output: 2-D array , 交易数
+#         日期   脚1对数化收盘价  脚2对数化收盘价 ...  脚N对数化收盘价  策略对数化收盘价  换仓提示  换仓详细  
+#         ...
+#
+def sim_rotate( his_data,  max_hold, start_day = "", end_day = ""):    
+    
+
+    if len(his_data) == 0:
+        raise Exception("没有行情历史数据。"  );
+
+    result = []
+    trans_num = 0 
+    
+    sec_num = len( his_data[0][1])
+
+    we_hold = []   # 我们持仓的代码
+
+    for i, row in enumerate(his_data):
+
+        t_day = row[0]
+        #print "T_Day %s,  we hold %s" % (row[0], we_hold)
+
+        if "" != start_day and t_day < start_day:
+            # 略过
+            continue
+
+        if "" != end_day and t_day >= end_day:
+            break
+
+        #print  "\t%s\n"  %  str(row).decode('string_escape')
+        
+        md_that_day      = row[1]   #当日行情      : 代码 => [收盘价，涨幅，对数化收盘价]
+        indices_that_day = row[2]   #当日指标      : 代码 => [涨幅, MA(涨幅, $MA_Size1) , MA(涨幅, $MA_Size2)    ]
+
+        #print "Today %s  %s" % (md_that_day, indices_that_day) 
+
+        if i == 0 :
+
+            # 第一天，没有操作 ，也没有损益
+
+            r_that_day = []
+            r_that_day.append( t_day )
+
+            
+            for code,md_set in md_that_day.iteritems():
+ 
+                #if 0 == i:
+                #    print "%s " % code 
+ 
+                logged_close_1_day = md_set[2]  # 对数化收盘价
+                r_that_day.append( logged_close_1_day)
+ 
+            #if 0 == i:
+            #    print " 以上第一天\n" 
+
+            r_that_day.append( INITIAL_BALANCE )    #策略收盘价
+            r_that_day.append( None ) #换仓提示
+            r_that_day.append( None ) #换仓明细
+
+            result.append( r_that_day )
+        else:
+
+            # 昨日本策略的收盘价
+            if len(result) > 0:
+                #if "2008-01-03" == t_day: 
+                #    pp = pprint.PrettyPrinter(indent=4)
+                #    pp.pprint(result) 
+                y_policy  = result[ len(result) - 1 ][ sec_num + 1  ]    
+            else:
+                y_policy = INITIAL_BALANCE 
+
+            #昨日行情
+            y_md      =  his_data[i - 1][1]
+
+            #昨日指标  {code1:指标数组1, code2:指标数组2, ... }
+            y_indices =  his_data[i - 1][2]
+            #print "TDay %s, 昨行情%s  昨指标%s, 净值 %f，持仓'%s' " % ( t_day, y_md, y_indices, y_policy, we_hold) 
+            #print "TDay %s, 昨行情%s,  今行情%s, 昨净值 %f，持仓'%s' " % ( t_day, y_md, md_that_day , y_policy, we_hold) 
+
+# 简单的轮换策略：
+#     根据昨日涨幅从从高到底排名。
+#     前M名如果>0，则各给1/M的仓位。
+            # 指标数组: [涨幅，MA1 of 涨幅, MA2 of 涨幅]
+            WHICH_INDI = 1 # 我们取指标数组里哪一个指标?
+            sorted_y_indices = sorted ( y_indices.items(), key=lambda sec:sec[1][WHICH_INDI], reverse=True)
+            # [ (第1名code, 第1名指标数组) , (第2名code, 第2名指标数组), ....  ]
+            #print "sorted y:%s" % sorted_y_indices 
+  
+            to_hold = []   # 继续持仓的代码
+            to_sell = []   # 要卖出的代码
+            to_buy  = []   # 要买进的代码
+           
+            
+            # 撸一遍我们的持仓，看看有哪些要持有，哪些要卖
+            for one_hold in we_hold:
+                rank, pos = get_rank(one_hold, sorted_y_indices, WHICH_INDI)   #可‘并列’的名次
+                y_indices_of_we_hold = sorted_y_indices[pos][1]
+
+                if rank <= max_hold and y_indices_of_we_hold[WHICH_INDI] > 0:
+                    to_hold.append( one_hold)
+                else:
+                    to_sell.append( one_hold)
+
+
+            # 撸一遍昨日M强，看看有哪些要买进
+            max_buy = max_hold - len(to_hold) 
+            for code,indi  in sorted_y_indices:
+                if max_buy <=0 :
+                    break
+                
+                if indi[WHICH_INDI] <= 0 :
+                    break
+                
+                if code in to_hold:
+                    continue
+
+                to_buy.append(code)
+                max_buy = max_buy - 1
+
+
+            op_num = len(to_buy) + len(to_sell)
+            blank_num = max_hold - len(to_hold) - len(to_buy)
+            print build_p_hint( t_day, to_hold, to_sell,  to_buy)
+            assert blank_num >= 0 
+
+
+            # 开始估算当日的净值
+            t_policy = 0
+
+            # 把 y_policy 分成max_hold份，分别计算损益
+            each_share = y_policy / max_hold 
+            for one_code in to_hold:
+                # 计算该份额今日损益
+                t_policy = t_policy + each_share * ( md_that_day[one_code][1]/100 + 1  )
+            for one_code in to_sell:
+                # 记录交易损耗
+                t_policy = t_policy - each_share * TRADE_LOSS 
+
+            for one_code in to_buy:
+                # 计算该份额今日损益 以及 交易损耗
+                t_policy = t_policy + each_share * ( md_that_day[one_code][1]/100 + 1  ) - each_share * TRADE_LOSS
+
+            # 最后叠加空仓的部分
+            t_policy = t_policy + each_share * blank_num
+            
+        
+            # 记录各脚
+            r_that_day = []
+            r_that_day.append( t_day )
+            
+            for code,md_set in md_that_day.iteritems():
+                logged_close_1_day = md_set[2]  # 对数化收盘价
+                r_that_day.append( logged_close_1_day)
+
+            # 记录策略的净值和动作
+            
+            r_that_day.append(t_policy  )      #策略收盘价
+            r_that_day.append( "%d" % op_num ) #交易次数
+            r_that_day.append( build_t_hint(t_day, to_sell, to_buy )) #换仓明细
+            result.append( r_that_day )
+
+            # 调整we_hold，记录交易数
+            we_hold = to_hold + to_buy
+            trans_num = trans_num + op_num 
+        
+            #print
+
+    return (result ,  trans_num )
+
+
+def rotate( dbcur, secs, max_hold  , start_day , end_day ):
+    
+    md_his_data = fetch_md_his_for_faster_horse2( dbcur, secs)
+    
+    make_indices_by_MA_delta( dbcur, secs, md_his_data, 0, 0 )
+
+    bt,trans_num  =  sim_rotate( md_his_data, max_hold ,  start_day,  end_day)
+   
+    suffix = ""
+    if "" != start_day: 
+        suffix = ".%s_%s" % (start_day, end_day)
+
+    plotter.generate_htm_chart_for_faster_horse2( secs, bt , suffix)
+    
+    first_entry = bt[0]
+    last_entry  = bt[len(bt) - 1 ]
+    #net_value   =  math.exp( last_entry [ len(secs) +1] ) 
+    net_value   =   last_entry [ len(secs) +1] / INITIAL_BALANCE  
     
     legs = []
     for i,sec in enumerate(secs):
